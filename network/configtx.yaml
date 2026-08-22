@@ -25,7 +25,7 @@ Organizations:
   - &OrdererBB
     Name: OrdererBBMSP
     ID: OrdererBBMSP
-    MSPDir: ../organizations/ordererOrganizations/ord-bb.verity.bd/msp
+    MSPDir: organizations/ordererOrganizations/ord-bb.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -42,7 +42,7 @@ Organizations:
   - &OrdererBIBM
     Name: OrdererBIBMMSP
     ID: OrdererBIBMMSP
-    MSPDir: ../organizations/ordererOrganizations/ord-bibm.verity.bd/msp
+    MSPDir: organizations/ordererOrganizations/ord-bibm.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -59,7 +59,7 @@ Organizations:
   - &OrdererFRC
     Name: OrdererFRCMSP
     ID: OrdererFRCMSP
-    MSPDir: ../organizations/ordererOrganizations/ord-frc.verity.bd/msp
+    MSPDir: organizations/ordererOrganizations/ord-frc.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -79,7 +79,7 @@ Organizations:
   - &OrdererSeatA
     Name: OrdererSeatAMSP
     ID: OrdererSeatAMSP
-    MSPDir: ../organizations/ordererOrganizations/ord-seata.verity.bd/msp
+    MSPDir: organizations/ordererOrganizations/ord-seata.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -96,7 +96,7 @@ Organizations:
   - &OrdererSeatB
     Name: OrdererSeatBMSP
     ID: OrdererSeatBMSP
-    MSPDir: ../organizations/ordererOrganizations/ord-seatb.verity.bd/msp
+    MSPDir: organizations/ordererOrganizations/ord-seatb.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -116,7 +116,7 @@ Organizations:
   - &BankA
     Name: BankAMSP
     ID: BankAMSP
-    MSPDir: ../organizations/peerOrganizations/banka.verity.bd/msp
+    MSPDir: organizations/peerOrganizations/banka.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -139,7 +139,7 @@ Organizations:
   - &BankB
     Name: BankBMSP
     ID: BankBMSP
-    MSPDir: ../organizations/peerOrganizations/bankb.verity.bd/msp
+    MSPDir: organizations/peerOrganizations/bankb.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -161,7 +161,7 @@ Organizations:
   - &BangladeshBank
     Name: BangladeshBankMSP
     ID: BangladeshBankMSP
-    MSPDir: ../organizations/peerOrganizations/bb.verity.bd/msp
+    MSPDir: organizations/peerOrganizations/bb.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -184,7 +184,7 @@ Organizations:
   - &FRC
     Name: FRCMSP
     ID: FRCMSP
-    MSPDir: ../organizations/peerOrganizations/frc.verity.bd/msp
+    MSPDir: organizations/peerOrganizations/frc.verity.bd/msp
     Policies:
       Readers:
         Type: Signature
@@ -243,12 +243,14 @@ Application: &ApplicationDefaults
 Orderer: &OrdererDefaults
   OrdererType: BFT
 
-  Addresses:
-    - orderer0.ord-bb.verity.bd:7050
-    - orderer1.ord-bibm.verity.bd:7051
-    - orderer2.ord-frc.verity.bd:7052
-    - orderer3.ord-seata.verity.bd:7053
-    - orderer4.ord-seatb.verity.bd:7054
+  # NO global `Addresses:` list here. Under the V3_0 channel capability Fabric
+  # rejects it outright:
+  #
+  #   "global orderer endpoints exist, but can not be used with V3_0 capability"
+  #
+  # Endpoints are declared per organisation instead, as `OrdererEndpoints` on
+  # each of the five ordering orgs above. That is the v3 model: an endpoint
+  # belongs to the organisation that operates the node, not to the channel.
 
   BatchTimeout: 2s
   BatchSize:
@@ -256,15 +258,13 @@ Orderer: &OrdererDefaults
     AbsoluteMaxBytes: 10 MB
     PreferredMaxBytes: 2 MB
 
-  # SmartBFT tuning. These are the Fabric defaults written out explicitly so
-  # the values are auditable. If configtxgen rejects a field on your Fabric
-  # version, delete that line — omitted fields fall back to defaults.
+  # SmartBFT tuning. Exactly the field set Fabric 3.1.1 ships in its own
+  # config/configtx.yaml BFT profile — written out so the values are auditable
+  # rather than implicit. Fields outside this set are not accepted by every
+  # 3.x build; omitted fields fall back to Fabric's defaults.
   SmartBFT:
-    RequestBatchMaxCount: 100
-    RequestBatchMaxInterval: 50ms
-    IncomingMessageBufferSize: 200
-    RequestPoolSize: 100000
-    RequestForwardTimeout: 2s
+    RequestBatchMaxInterval: 200ms
+    RequestForwardTimeout: 5s
     RequestComplainTimeout: 20s
     RequestAutoRemoveTimeout: 3m0s
     ViewChangeResendInterval: 5s
@@ -272,10 +272,8 @@ Orderer: &OrdererDefaults
     LeaderHeartbeatTimeout: 1m0s
     LeaderHeartbeatCount: 10
     CollectTimeout: 1s
-    SyncOnStart: true
-    SpeedUpViewChange: false
-    LeaderRotation: 0
-    DecisionsPerLeader: 3
+    IncomingMessageBufferSize: 200
+    RequestPoolSize: 100000
 
   # The five consenters. n = 5, BFT tolerates f = 1 (n >= 3f+1).
   # Expansion to seven organisations raises tolerance to f = 2 (§4.1).
@@ -284,37 +282,37 @@ Orderer: &OrdererDefaults
       Host: orderer0.ord-bb.verity.bd
       Port: 7050
       MSPID: OrdererBBMSP
-      Identity: ../organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/msp/signcerts/cert.pem
-      ClientTLSCert: ../organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/tls/server.crt
-      ServerTLSCert: ../organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/tls/server.crt
+      Identity: organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/tls/server.crt
+      ServerTLSCert: organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/tls/server.crt
     - ID: 2
       Host: orderer1.ord-bibm.verity.bd
       Port: 7051
       MSPID: OrdererBIBMMSP
-      Identity: ../organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/msp/signcerts/cert.pem
-      ClientTLSCert: ../organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/tls/server.crt
-      ServerTLSCert: ../organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/tls/server.crt
+      Identity: organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/tls/server.crt
+      ServerTLSCert: organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/tls/server.crt
     - ID: 3
       Host: orderer2.ord-frc.verity.bd
       Port: 7052
       MSPID: OrdererFRCMSP
-      Identity: ../organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/msp/signcerts/cert.pem
-      ClientTLSCert: ../organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/tls/server.crt
-      ServerTLSCert: ../organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/tls/server.crt
+      Identity: organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/tls/server.crt
+      ServerTLSCert: organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/tls/server.crt
     - ID: 4
       Host: orderer3.ord-seata.verity.bd
       Port: 7053
       MSPID: OrdererSeatAMSP
-      Identity: ../organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/msp/signcerts/cert.pem
-      ClientTLSCert: ../organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/tls/server.crt
-      ServerTLSCert: ../organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/tls/server.crt
+      Identity: organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/tls/server.crt
+      ServerTLSCert: organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/tls/server.crt
     - ID: 5
       Host: orderer4.ord-seatb.verity.bd
       Port: 7054
       MSPID: OrdererSeatBMSP
-      Identity: ../organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/msp/signcerts/cert.pem
-      ClientTLSCert: ../organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/tls/server.crt
-      ServerTLSCert: ../organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/tls/server.crt
+      Identity: organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/tls/server.crt
+      ServerTLSCert: organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/tls/server.crt
 
   Organizations:
 
@@ -328,10 +326,18 @@ Orderer: &OrdererDefaults
     Admins:
       Type: ImplicitMeta
       Rule: "MAJORITY Admins"
-    # BFT block validation. Must be ImplicitOrderer/SMARTBFT for OrdererType: BFT.
+    # BlockValidation specifies what signatures a peer requires on a block
+    # before accepting it.
+    #
+    # This stays ImplicitMeta even under BFT. There is no `ImplicitOrderer` /
+    # `SMARTBFT` policy type in configtx — configtxgen rejects it with
+    # "unknown policy type: ImplicitOrderer". Fabric applies SmartBFT's own
+    # block-signature rules internally once OrdererType is BFT; the channel
+    # policy does not restate them. Matches config/configtx.yaml as shipped
+    # with the Fabric 3.1.1 binaries.
     BlockValidation:
-      Type: ImplicitOrderer
-      Rule: SMARTBFT
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
 
 ################################################################################
 #   CHANNEL DEFAULTS

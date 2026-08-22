@@ -40,6 +40,8 @@ logs/
 # --- Fabric tooling downloaded by bootstrap.sh -----------------------------
 network/bin/
 network/builders/
+network/config/
+network/install-fabric.sh
 config/
 
 # --- Large media — link to these, never commit them ------------------------

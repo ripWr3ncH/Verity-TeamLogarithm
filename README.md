@@ -3,8 +3,10 @@
 **Making loan classification tamper-evident in Bangladesh's banking system.**
 Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
 
-> ⚠ **Build status: Phase 3 of 5.** Network, chaincode and services written and
-> unit-tested — **162/162 passing** — but the network has not yet been run. The section
+> **Build status: Phase 4 of 5 — the network runs.** BFT ordering live, all three
+> chaincodes deployed, 15 identities enrolled, refusals firing and the Council
+> quorum flow completing end to end. 162/162 unit tests green. The web portals
+> are Phase 5. The section
 > [What is built, and what is not](#what-is-built-and-what-is-not) is kept
 > honest at every commit. See [`HANDOFF/`](HANDOFF/) for where work stopped.
 
@@ -34,12 +36,13 @@ almost all of it downloading Fabric images.
 git clone https://github.com/ripWr3ncH/Verity-TeamLogarithm
 cd Verity-TeamLogarithm
 
-cd network && ./bootstrap.sh    # once per machine: binaries + images (15-30 min)
-cd .. && ./scripts/up.sh        # network, CAs, identities, chaincode, services, seed
+source network/scripts/wsl-env.sh   # WSL2 only: Node + jq into user space, no sudo
+cd network && ./bootstrap.sh        # once per machine: binaries + images (15-30 min)
+cd .. && ./scripts/up.sh            # network, CAs, identities, chaincode, services, seed
 ```
 
 Then `curl -s localhost:4000/health` and `./network/network.sh status`.
-The web portals arrive in Phase 4.
+The web portals arrive in Phase 5.
 
 To stop and clean: `./scripts/down.sh`.
 
@@ -51,19 +54,21 @@ Kept current. We would rather state this than be asked.
 
 | Component | Status |
 |---|---|
-| Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ written, first run pending |
-| Lifecycle chaincode — signed events, k-of-n authority evidence, statutory calendar | ✅ **38/38 unit tests**, deploy pending |
-| Governance chaincode — Council parameters, quorum-gated change | ✅ written |
-| Supervisory access log — every regulator read recorded | ✅ written |
+| Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ **running** — 17 containers |
+| Lifecycle chaincode — signed events, k-of-n authority evidence, statutory calendar | ✅ **deployed**, 38 unit tests |
+| Governance chaincode — Council parameters, quorum-gated change | ✅ **deployed and verified live** |
+| Supervisory access log — every regulator read recorded | ✅ deployed |
 | Cryptography — Paillier, Shamir, supervisor-plus-quorum ceremony, Merkle sum | ✅ **43 tests** |
-| Exposure chaincode — on-chain aggregation, proof-checked ceremony results | ✅ **17 tests**, deploy pending |
-| Liability + claims chaincode — signed-leaf roots, claim tokens | ✅ **12 tests**, deploy pending |
+| Exposure chaincode — on-chain aggregation, proof-checked ceremony results | ✅ **deployed**, 17 tests |
+| Liability + claims chaincode — signed-leaf roots, claim tokens | ✅ **deployed**, 12 tests |
 | EDI engine — equations (1) and (2), base-rate calibration | ✅ **32 tests** |
 | Deterministic synthetic seed data | ✅ **20 tests** |
-| API gateway — one X.509 identity per officer | ✅ typechecks, first run pending |
-| Block listener + read model, rebuildable from block 0 | ✅ typechecks, first run pending |
-| Mock core banking system with a read-only adapter grant | ✅ written |
-| Bank officer · supervisor · depositor portals | ⏳ Phase 4 |
+| Identities — 15 officers, CA-issued role attributes read by chaincode | ✅ **enrolled and verified** |
+| API gateway — one X.509 identity per officer | ⏳ typechecks, not yet run |
+| Block listener + read model, rebuildable from block 0 | ⏳ typechecks, not yet run |
+| Mock core banking system with a read-only adapter grant | ⏳ written, not yet run |
+| Private data collections | ❌ **not deployed** — see HANDOFF/PHASE_04 §5.1 |
+| Bank officer · supervisor · depositor portals | ⏳ Phase 5 |
 | Benchmark, red-team suite, demo assets | ⏳ Phase 5 |
 
 **Out of scope for this prototype, and deliberately so:**

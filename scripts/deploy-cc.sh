@@ -98,14 +98,56 @@ say "Building ${CC_NAME}"
   || die "chaincode build failed — fix it before deploying"
 ok "compiled"
 
-say "Packaging"
+# ---------------------------------------------------------------------------
+#  Package from a CLEAN STAGING DIRECTORY, never from the source tree.
+#
+#  `peer lifecycle chaincode package --path X` archives everything under X,
+#  node_modules included. With dependencies installed for the local build that
+#  is 150 MB+, and the peer then streams the whole thing to the Docker daemon
+#  to build a chaincode image. It does not survive the trip:
+#
+#      could not build chaincode: docker build failed:
+#      docker image build failed: write unix @->/var/run/docker.sock:
+#      write: broken pipe
+#
+#  which names Docker rather than the package size and sends you hunting in the
+#  wrong place entirely.
+#
+#  The peer runs `npm install` itself inside fabric-nodeenv, so the package
+#  needs only package.json, the lockfile and dist/. Staging those keeps it
+#  around 100 KB and makes chaincode container start-up markedly faster.
+# ---------------------------------------------------------------------------
+CC_SERVICE="cc-${CC_NAME}"
+CC_PORT=9999
+
+say "Packaging as a chaincode service"
+step "the peer never builds an image; it dials ${CC_SERVICE}:${CC_PORT}"
+
 PKG="${ROOT}/${CC_NAME}.tar.gz"
+STAGE="$(mktemp -d)"
+trap 'rm -rf "$STAGE"' EXIT
+
+# A ccaas package carries only how to REACH the chaincode. The code itself
+# ships in the container image built below.
+mkdir -p "${STAGE}/src"
+cat > "${STAGE}/src/connection.json" <<EOF
+{
+  "address": "${CC_SERVICE}:${CC_PORT}",
+  "dial_timeout": "10s",
+  "tls_required": false
+}
+EOF
+cat > "${STAGE}/metadata.json" <<EOF
+{
+  "type": "ccaas",
+  "label": "${CC_NAME}_${CC_VERSION}"
+}
+EOF
+
 rm -f "$PKG"
-peer lifecycle chaincode package "$PKG" \
-  --path "$CC_PATH" --lang node --label "${CC_NAME}_${CC_VERSION}" \
-  || die "package failed"
-PKG_ID=""
-ok "$(basename "$PKG")"
+tar -czf "${STAGE}/code.tar.gz" -C "${STAGE}/src" connection.json
+tar -czf "$PKG" -C "$STAGE" code.tar.gz metadata.json
+ok "$(basename "$PKG") ($(du -h "$PKG" | cut -f1))"
 
 say "Installing on: ${ORGS}"
 for org in $ORGS; do
@@ -113,7 +155,14 @@ for org in $ORGS; do
   if peer lifecycle chaincode queryinstalled 2>/dev/null | grep -q "${CC_NAME}_${CC_VERSION}"; then
     step "${org} already has it"
   else
-    peer lifecycle chaincode install "$PKG" >/dev/null 2>&1 || die "install failed on ${org}"
+    # Do NOT swallow this. The peer builds a chaincode image here, and when it
+    # fails the reason is in the last line of its output — "broken pipe" for an
+    # oversized package, an npm error for a bad dependency, a timeout for a
+    # slow first build. Hiding it turns a five-minute fix into an hour.
+    if ! install_log="$(peer lifecycle chaincode install "$PKG" 2>&1)"; then
+      printf '%s\n' "$install_log" | grep -avE 'INFO |grpc|^\s*[]{}[]|Addr"|ServerName|Attributes|Metadata|Endpoints|ServiceConfig|shuffleAddressList|^\s*$' | tail -5 >&2
+      die "install failed on ${org}"
+    fi
     step "${org} installed"
   fi
 done
@@ -122,6 +171,40 @@ setOrg banka
 PKG_ID="$(peer lifecycle chaincode queryinstalled | sed -n "s/^Package ID: \(.*\), Label: ${CC_NAME}_${CC_VERSION}$/\1/p" | head -1)"
 [[ -n "$PKG_ID" ]] || die "could not determine the package id"
 step "package id ${PKG_ID:0:24}…"
+
+# ---------------------------------------------------------------------------
+#  Start the chaincode service.
+#
+#  CHAINCODE_ID must be exactly the package id the peer computed at install.
+#  If they differ the peer rejects the registration with a mismatched-id error
+#  that does not say which side is wrong — so it is passed through, never
+#  retyped.
+# ---------------------------------------------------------------------------
+say "Starting the chaincode service"
+docker build -q \
+  -f "${ROOT}/chaincode/Dockerfile" \
+  --build-arg "CC_NAME=${CC_NAME}" \
+  -t "verity/${CC_NAME}-cc:${CC_VERSION}" \
+  "$ROOT" >/dev/null || die "could not build the ${CC_NAME} chaincode image"
+step "image verity/${CC_NAME}-cc:${CC_VERSION}"
+
+docker rm -f "$CC_SERVICE" >/dev/null 2>&1 || true
+docker run -d \
+  --name "$CC_SERVICE" \
+  --network verity_net \
+  --label service=hyperledger-fabric \
+  --label verity.role=chaincode \
+  -e "CHAINCODE_ID=${PKG_ID}" \
+  -e "CHAINCODE_SERVER_ADDRESS=0.0.0.0:${CC_PORT}" \
+  "verity/${CC_NAME}-cc:${CC_VERSION}" >/dev/null \
+  || die "could not start ${CC_SERVICE}"
+
+# Give the server a moment to bind before the peers are told to dial it.
+for _ in $(seq 1 20); do
+  docker logs "$CC_SERVICE" 2>&1 | grep -q "Starting chaincode\|server started\|Listening" && break
+  sleep 1
+done
+ok "${CC_SERVICE} listening on ${CC_PORT}"
 
 say "Approving for each organisation"
 step "policy: ${POLICY}"

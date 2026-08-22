@@ -72,15 +72,14 @@ x-peer-base: &peer-base
     CORE_PEER_TLS_ROOTCERT_FILE: /etc/hyperledger/fabric/tls/ca.crt
     CORE_PEER_MSPCONFIGPATH: /etc/hyperledger/fabric/msp
     CORE_LEDGER_STATE_STATEDATABASE: goleveldb
-    CORE_VM_ENDPOINT: unix:///host/var/run/docker.sock
-    CORE_VM_DOCKER_HOSTCONFIG_NETWORKMODE: verity_net
+    # No CORE_VM_ENDPOINT. Chaincode runs as a service (CCaaS), so the peer
+    # never builds an image and never needs the host Docker daemon. Fabric 3.x
+    # ships the builder at /opt/hyperledger/ccaas_builder.
     CORE_CHAINCODE_EXECUTETIMEOUT: 300s
     CORE_OPERATIONS_LISTENADDRESS: 0.0.0.0:9440
     CORE_METRICS_PROVIDER: prometheus
     # Gateway service — used by services/api via @hyperledger/fabric-gateway
     CORE_PEER_GATEWAY_ENABLED: "true"
-  volumes:
-    - /var/run/docker.sock:/host/var/run/docker.sock
   working_dir: /root
   command: peer node start
   networks:
@@ -187,7 +186,6 @@ services:
       CORE_PEER_LOCALMSPID: BankAMSP
     ports: ["9051:9051", "9451:9440"]
     volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/banka.verity.bd/peers/peer0.banka.verity.bd/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/banka.verity.bd/peers/peer0.banka.verity.bd/tls:/etc/hyperledger/fabric/tls
       - peer0.banka.verity.bd:/var/hyperledger/production
@@ -208,7 +206,6 @@ services:
       CORE_PEER_LOCALMSPID: BankBMSP
     ports: ["9061:9061", "9461:9440"]
     volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/bankb.verity.bd/peers/peer0.bankb.verity.bd/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/bankb.verity.bd/peers/peer0.bankb.verity.bd/tls:/etc/hyperledger/fabric/tls
       - peer0.bankb.verity.bd:/var/hyperledger/production
@@ -229,7 +226,6 @@ services:
       CORE_PEER_LOCALMSPID: BangladeshBankMSP
     ports: ["9071:9071", "9471:9440"]
     volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/bb.verity.bd/peers/peer0.bb.verity.bd/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/bb.verity.bd/peers/peer0.bb.verity.bd/tls:/etc/hyperledger/fabric/tls
       - peer0.bb.verity.bd:/var/hyperledger/production
@@ -250,7 +246,6 @@ services:
       CORE_PEER_LOCALMSPID: FRCMSP
     ports: ["9081:9081", "9481:9440"]
     volumes:
-      - /var/run/docker.sock:/host/var/run/docker.sock
       - ../organizations/peerOrganizations/frc.verity.bd/peers/peer0.frc.verity.bd/msp:/etc/hyperledger/fabric/msp
       - ../organizations/peerOrganizations/frc.verity.bd/peers/peer0.frc.verity.bd/tls:/etc/hyperledger/fabric/tls
       - peer0.frc.verity.bd:/var/hyperledger/production
@@ -260,7 +255,7 @@ services:
   # =========================================================================
   cli:
     container_name: verity-cli
-    image: hyperledger/fabric-tools:${FABRIC_VERSION:-3.1}
+    image: hyperledger/fabric-tools:${TOOLS_VERSION:-2.5}   # fabric-tools publishes no 3.x tag
     labels:
       service: hyperledger-fabric
       verity.role: cli

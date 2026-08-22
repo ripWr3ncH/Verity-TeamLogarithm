@@ -1,0 +1,13 @@
+# Chaincode images copy only package.json and dist/. Everything else is noise
+# that slows the build context upload.
+**/node_modules
+**/dist/test
+.git
+network/organizations
+network/bin
+network/config
+seed/out
+web/.next
+services/*/dist
+*.tar.gz
+*.log

@@ -93,12 +93,37 @@ normaliseSigncerts() {
   done < <(find organizations -type d -name signcerts -print0)
 }
 
+# Fabric CA must ADOPT the root cryptogen generated, or identities it issues are
+# not valid in the MSP the channel was created with. compose-ca.yaml points at
+# ca-cert.pem / ca-key.pem, but cryptogen writes ca.<domain>-cert.pem and a
+# hash-named *_sk key.
+#
+# When the CA cannot find those files it does NOT fail — it quietly generates a
+# self-signed root of its own, every enrolment succeeds, and the first
+# transaction dies with:
+#
+#     access denied: channel [commitment] creator org unknown, creator is malformed
+#
+# which says nothing about certificate authorities at all. Normalising the names
+# here is what keeps the two tools on the same root.
+normaliseCaMaterial() {
+  local domain ca key
+  for domain in banka.verity.bd bankb.verity.bd bb.verity.bd frc.verity.bd; do
+    ca="organizations/peerOrganizations/${domain}/ca"
+    [[ -d "$ca" ]] || continue
+    cp -f "${ca}/ca.${domain}-cert.pem" "${ca}/ca-cert.pem" 2>/dev/null || true
+    key="$(find "$ca" -maxdepth 1 -name '*_sk' | head -1)"
+    [[ -n "$key" ]] && cp -f "$key" "${ca}/ca-key.pem"
+  done
+}
+
 generateCrypto() {
   say "Generating X.509 material for 5 ordering and 4 peer organisations"
   rm -rf organizations/ordererOrganizations organizations/peerOrganizations
   cryptogen generate --config=./crypto-config.yaml --output=./organizations \
     || die "cryptogen failed"
   normaliseSigncerts
+  normaliseCaMaterial
   ok "crypto material written to organizations/"
 }
 
@@ -106,7 +131,17 @@ generateGenesisBlocks() {
   say "Generating channel genesis blocks"
   mkdir -p channel-artifacts
   for ch in "${CHANNELS[@]}"; do
+    # -configPath must point at OUR configtx.yaml (network/), NOT at
+    # FABRIC_CFG_PATH. FABRIC_CFG_PATH is network/config, which holds the stock
+    # core.yaml / orderer.yaml / configtx.yaml that ship with the Fabric
+    # binaries — and that stock configtx.yaml has no Verity profiles in it, so
+    # configtxgen fails with "Could not find profile: VerityCommitment".
+    #
+    # Relative paths INSIDE configtx.yaml resolve against the directory holding
+    # that file, which is why they read 'organizations/...' and not
+    # '../organizations/...'. Change one and you must change the other.
     configtxgen -profile "${PROFILE[$ch]}" \
+      -configPath "${ROOT}" \
       -outputBlock "./channel-artifacts/${ch}.block" \
       -channelID "$ch" \
       || die "configtxgen failed for channel '$ch' (profile ${PROFILE[$ch]})"

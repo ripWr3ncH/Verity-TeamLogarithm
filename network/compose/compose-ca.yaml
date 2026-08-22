@@ -31,7 +31,7 @@ networks:
     external: true
 
 x-ca-base: &ca-base
-  image: hyperledger/fabric-ca:${CA_VERSION:-1.5}
+  image: hyperledger/fabric-ca:${CA_VERSION:-1.5.22}
   labels:
     service: hyperledger-fabric
     verity.role: ca
