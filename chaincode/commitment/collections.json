@@ -1,0 +1,20 @@
+[
+  {
+    "name": "bankAPrivate",
+    "policy": "OR('BankAMSP.member','BangladeshBankMSP.member')",
+    "requiredPeerCount": 0,
+    "maxPeerCount": 2,
+    "blockToLive": 0,
+    "memberOnlyRead": true,
+    "memberOnlyWrite": true
+  },
+  {
+    "name": "bankBPrivate",
+    "policy": "OR('BankBMSP.member','BangladeshBankMSP.member')",
+    "requiredPeerCount": 0,
+    "maxPeerCount": 2,
+    "blockToLive": 0,
+    "memberOnlyRead": true,
+    "memberOnlyWrite": true
+  }
+]

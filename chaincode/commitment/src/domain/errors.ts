@@ -35,6 +35,8 @@ export const REFUSAL = {
   PROPOSAL_NOT_FOUND: 'PROPOSAL_NOT_FOUND',
   PROPOSAL_CLOSED: 'PROPOSAL_CLOSED',
   INVALID_EVENT_TYPE: 'INVALID_EVENT_TYPE',
+  PAYLOAD_HASH_MISMATCH: 'PAYLOAD_HASH_MISMATCH',
+  NO_PRIVATE_COLLECTION: 'NO_PRIVATE_COLLECTION',
 } as const;
 
 export type RefusalCode = (typeof REFUSAL)[keyof typeof REFUSAL];
@@ -169,6 +171,19 @@ export const refusals = {
 
   invalidEventType: (type: string) =>
     new Refusal(REFUSAL.INVALID_EVENT_TYPE, `'${type}' is not a recognised lifecycle event type`),
+
+  payloadHashMismatch: (declared: string, actual: string) =>
+    new Refusal(
+      REFUSAL.PAYLOAD_HASH_MISMATCH,
+      `the declared payload hash ${short(declared)} does not match the private payload supplied ` +
+        `(${short(actual)}); the public record must commit to exactly what is held privately`,
+    ),
+
+  noPrivateCollection: (mspId: string) =>
+    new Refusal(
+      REFUSAL.NO_PRIVATE_COLLECTION,
+      `${mspId} has no private data collection; only originating institutions hold one`,
+    ),
 };
 
 const short = (h: string): string => (h.length > 12 ? `${h.slice(0, 10)}…` : h);

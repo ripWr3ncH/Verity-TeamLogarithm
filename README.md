@@ -67,9 +67,10 @@ Kept current. We would rather state this than be asked.
 | API gateway — one X.509 identity per officer | ⏳ typechecks, not yet run |
 | Block listener + read model, rebuildable from block 0 | ⏳ typechecks, not yet run |
 | Mock core banking system with a read-only adapter grant | ⏳ written, not yet run |
-| Private data collections | ❌ **not deployed** — see HANDOFF/PHASE_04 §5.1 |
+| Private data collections — the same query returns payload or hash by identity | ✅ **deployed and demonstrated** |
 | Bank officer · supervisor · depositor portals | ⏳ Phase 5 |
-| Benchmark, red-team suite, demo assets | ⏳ Phase 5 |
+| Red-team suite | 🔨 in progress — Act 3a done (`redteam/act3a.sh`) |
+| Benchmark, demo assets | ⏳ Phase 5 |
 
 **Out of scope for this prototype, and deliberately so:**
 

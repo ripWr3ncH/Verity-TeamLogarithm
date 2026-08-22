@@ -24,7 +24,7 @@ import {
   verifyPara11c,
 } from '../domain/authority';
 import { refusals } from '../domain/errors';
-import { eventHash, stateHash } from '../domain/hash';
+import { eventHash, sha256Hex, stateHash } from '../domain/hash';
 import {
   AuthorityEvidence,
   ClassificationTier,
@@ -51,6 +51,21 @@ import { readParameter } from './governance';
 import { recordAccess } from './accesslog';
 
 const GENESIS_STATE_HASH = '0'.repeat(64);
+
+/**
+ * Which private data collection holds an institution's payloads.
+ * Mirrors chaincode/commitment/collections.json — change one, change the other.
+ */
+const COLLECTIONS: Record<string, string> = {
+  BankAMSP: 'bankAPrivate',
+  BankBMSP: 'bankBPrivate',
+};
+
+function collectionFor(institutionMsp: string): string {
+  const collection = COLLECTIONS[institutionMsp];
+  if (!collection) throw refusals.noPrivateCollection(institutionMsp);
+  return collection;
+}
 
 @Info({ title: 'LifecycleContract', description: 'Module I — signed lifecycle events and authority evidence' })
 export class LifecycleContract extends Contract {
@@ -273,6 +288,35 @@ export class LifecycleContract extends Contract {
       status: type === 'WRITE_OFF' ? 'WRITTEN_OFF' : loan.status,
     };
 
+    // ------------------------------------------------------------------
+    //  Private payload — §4.2's on-chain / off-chain boundary, enforced.
+    //
+    //  The justification memo, the borrower reference and the exact amounts
+    //  travel in the TRANSIENT field, never in the arguments, so they are not
+    //  written into the transaction the whole channel can read. Chaincode puts
+    //  them in the originating institution's private data collection, shared
+    //  only with Bangladesh Bank (and that institution's auditor).
+    //
+    //  What lands on the public channel is the HASH. Every channel member can
+    //  verify that a payload exists and has not changed; only collection
+    //  members can read it. That is Act 3a.
+    // ------------------------------------------------------------------
+    const transient = ctx.stub.getTransient();
+    const privatePayload = transient.get('payload');
+
+    if (privatePayload && privatePayload.length > 0) {
+      // The public record must commit to exactly what is held privately, or
+      // the hash proves nothing.
+      const actual = sha256Hex(Buffer.from(privatePayload));
+      if (actual !== payloadHash) throw refusals.payloadHashMismatch(payloadHash, actual);
+
+      await ctx.stub.putPrivateData(
+        collectionFor(loan.institutionMsp),
+        eventKey(ctx, commitmentId, seq),
+        Buffer.from(privatePayload),
+      );
+    }
+
     await putJson(ctx, eventKey(ctx, commitmentId, seq), event);
     await putJson(ctx, loanKey(ctx, commitmentId), updated);
 
@@ -325,6 +369,68 @@ export class LifecycleContract extends Contract {
   async GetEventTrail(ctx: Context, commitmentId: string): Promise<string> {
     const events = await listByPartialKey<LifecycleEvent>(ctx, KEY.EVENT, [commitmentId]);
     return JSON.stringify(events.sort((a, b) => a.seq - b.seq));
+  }
+
+  /**
+   * ═══════════════════════════════════════════════════════════════════════
+   *  ACT 3a. The same query, from two identities.
+   *
+   *  §4.4 Table 3: "No row grants any participant sight of another
+   *  institution's per-borrower position."
+   *
+   *  Run this as Bangladesh Bank and you get the payload. Run it as an officer
+   *  of a competing bank and you get the hash — not because this function
+   *  decides to withhold it, but because THE PAYLOAD WAS NEVER DISSEMINATED
+   *  TO THAT PEER. Fabric's private data collections enforce it at the gossip
+   *  layer; the chaincode could not reveal it if it wanted to.
+   *
+   *  Both callers can see the hash, and can therefore both verify that a
+   *  payload exists and has not been altered. That is the distinction worth
+   *  drawing out on stage: confidentiality without giving up integrity.
+   * ═══════════════════════════════════════════════════════════════════════
+   */
+  @Transaction(false)
+  @Returns('string')
+  async ReadEventPayload(ctx: Context, commitmentId: string, seq: string): Promise<string> {
+    const loan = await getJson<LoanRecord>(ctx, loanKey(ctx, commitmentId));
+    if (!loan) throw refusals.loanNotFound(commitmentId);
+
+    const who = caller(ctx);
+    const collection = collectionFor(loan.institutionMsp);
+    const key = eventKey(ctx, commitmentId, Number(seq));
+
+    // getPrivateData returns empty — or errors — for a peer outside the
+    // collection. Either way it is a refusal, not a payload.
+    let payload: Uint8Array | undefined;
+    try {
+      payload = await ctx.stub.getPrivateData(collection, key);
+    } catch {
+      payload = undefined;
+    }
+
+    // The hash lives in public state, so every channel member can read it.
+    const hashBytes = await ctx.stub.getPrivateDataHash(collection, key);
+    const payloadHash = Buffer.from(hashBytes).toString('hex');
+
+    if (payload && payload.length > 0) {
+      return JSON.stringify({
+        authorised: true,
+        callerMsp: who.mspId,
+        collection,
+        payloadHash,
+        payload: JSON.parse(Buffer.from(payload).toString('utf8')),
+      });
+    }
+
+    return JSON.stringify({
+      authorised: false,
+      callerMsp: who.mspId,
+      collection,
+      payloadHash,
+      reason:
+        `PRIVATE_DATA: ${who.mspId} is not a member of collection '${collection}'. ` +
+        'The hash is public and verifiable; the payload was never replicated to this peer.',
+    });
   }
 
   /**

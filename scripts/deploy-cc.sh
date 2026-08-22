@@ -30,12 +30,19 @@ CC_SEQUENCE="${CC_SEQUENCE:-1}"
 CC_PATH="${ROOT}/chaincode/${CC_NAME}"
 
 # channel + endorsement policy + which orgs install
+# Private data collections. §4.2: a collection per institution, shared with
+# Bangladesh Bank and that institution's auditor. Without --collections-config
+# every channel member can read every payload, and Act 3a's two-identity
+# comparison is a claim rather than a demonstration.
+COLLECTIONS=""
+
 case "$CC_NAME" in
   commitment)
     CHANNEL=commitment
     # bank AND supervisor
     POLICY="AND(OR('BankAMSP.peer','BankBMSP.peer'),'BangladeshBankMSP.peer')"
     ORGS="banka bankb bb frc"
+    COLLECTIONS="${ROOT}/chaincode/commitment/collections.json"
     ;;
   exposure)
     CHANNEL=exposure
@@ -92,6 +99,12 @@ peerFlags() {
 [[ -d "$CC_PATH" ]] || die "no chaincode at ${CC_PATH}"
 [[ -x "${NET}/bin/peer" ]] || die "Fabric binaries missing — run network/bootstrap.sh"
 [[ -f "$ORDERER_CA" ]] || die "orderer TLS CA not found — is the network up?"
+
+COLLECTION_FLAG=""
+if [[ -n "$COLLECTIONS" ]]; then
+  [[ -f "$COLLECTIONS" ]] || die "collections config not found: $COLLECTIONS"
+  COLLECTION_FLAG="--collections-config $COLLECTIONS"
+fi
 
 say "Building ${CC_NAME}"
 ( cd "$CC_PATH" && npm install --silent --no-audit --no-fund && npm run build ) \
@@ -206,26 +219,95 @@ for _ in $(seq 1 20); do
 done
 ok "${CC_SERVICE} listening on ${CC_PORT}"
 
+# ---------------------------------------------------------------------------
+#  --waitForEvent=false, then verify by querying STATE.
+#
+#  The lifecycle commands default to waiting on each peer's deliver-filtered
+#  stream. On Docker Desktop with the WSL2 backend that stream is unreliable:
+#
+#      Error: timed out waiting for txid on all peers
+#
+#  and the result is ambiguous — sometimes the transaction committed anyway,
+#  sometimes it genuinely did not. Waiting on an event we cannot trust tells us
+#  nothing either way.
+#
+#  So: do not wait for the event, and confirm the outcome by reading the state
+#  the transaction was supposed to produce. That is the thing we actually care
+#  about, and it is unambiguous.
+# ---------------------------------------------------------------------------
+readiness() {
+  setOrg banka
+  peer lifecycle chaincode checkcommitreadiness \
+    --channelID "$CHANNEL" --name "$CC_NAME" --version "$CC_VERSION" \
+    --sequence "$CC_SEQUENCE" --signature-policy "$POLICY" $COLLECTION_FLAG \
+    --output json 2>/dev/null
+}
+
+alreadyCommitted() {
+  setOrg banka
+  peer lifecycle chaincode querycommitted --channelID "$CHANNEL" --name "$CC_NAME" 2>/dev/null \
+    | grep -q "Sequence: ${CC_SEQUENCE},"
+}
+
+# If this sequence is already live, approving it again is an error, not a
+# no-op ("attempted to redefine the current committed sequence"). Re-running a
+# deploy has to be safe — the chaincode service was rebuilt and restarted
+# above, which is the part that actually needed doing.
+if alreadyCommitted; then
+  say "Sequence ${CC_SEQUENCE} is already committed"
+  step "chaincode service rebuilt and reconnected; nothing to approve"
+  rm -f "$PKG"
+  printf "\n"
+  ok "${CC_NAME} live on channel '${CHANNEL}' at sequence ${CC_SEQUENCE}"
+  exit 0
+fi
+
 say "Approving for each organisation"
 step "policy: ${POLICY}"
+[[ -n "$COLLECTION_FLAG" ]] && step "collections: $(basename "$COLLECTIONS")"
 for org in $ORGS; do
   setOrg "$org"
-  peer lifecycle chaincode approveformyorg \
+
+  # Re-running a deploy must be safe. An approval that already landed comes
+  # back as:
+  #
+  #   attempted to redefine uncommitted sequence (N) for namespace X
+  #   with unchanged content
+  #
+  # which is not a failure — it is the state we wanted. Treating it as an error
+  # is what turns "the event wait timed out but the transaction committed" into
+  # a deploy that can never be retried.
+  approve_log="$(peer lifecycle chaincode approveformyorg \
     -o "$ORDERER" --ordererTLSHostnameOverride orderer0.ord-bb.verity.bd \
     --tls --cafile "$ORDERER_CA" \
     --channelID "$CHANNEL" --name "$CC_NAME" --version "$CC_VERSION" \
     --package-id "$PKG_ID" --sequence "$CC_SEQUENCE" \
-    --signature-policy "$POLICY" >/dev/null \
-    || die "approve failed for ${org}"
+    --signature-policy "$POLICY" $COLLECTION_FLAG \
+    --waitForEvent=false 2>&1)" || {
+      if grep -q "unchanged content" <<<"$approve_log"; then
+        step "${org} had already approved this definition"
+      else
+        printf '%s\n' "$approve_log" | grep -aE 'Error:' | tail -3 >&2
+        die "approve failed for ${org}"
+      fi
+    }
+
+  # Confirm this org's approval actually landed, rather than trusting the call.
+  msp="${ORG_MSP[$org]}"
+  approved=false
+  for _ in $(seq 1 20); do
+    if readiness | jq -e --arg m "$msp" '.approvals[$m] == true' >/dev/null 2>&1; then
+      approved=true
+      break
+    fi
+    sleep 2
+  done
+  [[ "$approved" == true ]] || die "approval from ${org} (${msp}) never committed"
   step "${org} approved"
 done
 
-say "Checking commit readiness"
-setOrg banka
-peer lifecycle chaincode checkcommitreadiness \
-  --channelID "$CHANNEL" --name "$CC_NAME" --version "$CC_VERSION" \
-  --sequence "$CC_SEQUENCE" --signature-policy "$POLICY" --output json \
-  || die "commit readiness check failed"
+say "Commit readiness"
+readiness | jq -c '.approvals' | sed 's/^/     /'
 
 say "Committing to channel '${CHANNEL}'"
 # shellcheck disable=SC2046
@@ -233,10 +315,26 @@ peer lifecycle chaincode commit \
   -o "$ORDERER" --ordererTLSHostnameOverride orderer0.ord-bb.verity.bd \
   --tls --cafile "$ORDERER_CA" \
   --channelID "$CHANNEL" --name "$CC_NAME" --version "$CC_VERSION" \
-  --sequence "$CC_SEQUENCE" --signature-policy "$POLICY" \
-  $(peerFlags) >/dev/null \
-  || die "commit failed"
-ok "committed"
+  --sequence "$CC_SEQUENCE" --signature-policy "$POLICY" $COLLECTION_FLAG \
+  --waitForEvent=false \
+  $(peerFlags) >/dev/null 2>&1 || true
+
+# The commit call's exit status is deliberately ignored: like approve, it can
+# report a timeout on a transaction that committed, and it errors outright if
+# the definition is already live. The querycommitted poll below is the real
+# answer — verify by state, never by exit code.
+setOrg banka
+committed=false
+for _ in $(seq 1 20); do
+  if peer lifecycle chaincode querycommitted --channelID "$CHANNEL" --name "$CC_NAME" 2>/dev/null \
+     | grep -q "Sequence: ${CC_SEQUENCE},"; then
+    committed=true
+    break
+  fi
+  sleep 2
+done
+[[ "$committed" == true ]] || die "commit never took effect at sequence ${CC_SEQUENCE}"
+ok "committed at sequence ${CC_SEQUENCE}"
 
 if [[ "$CC_NAME" == "commitment" ]]; then
   say "Writing the genesis calibration (λ, E*, θ, k, quorum)"
@@ -248,7 +346,7 @@ if [[ "$CC_NAME" == "commitment" ]]; then
     --tls --cafile "$ORDERER_CA" \
     -C "$CHANNEL" -n "$CC_NAME" \
     $(peerFlags) \
-    -c '{"Args":["GovernanceContract:InitParameters"]}' 2>&1 | tail -1
+    --waitForEvent=false \n    -c '{"Args":["GovernanceContract:InitParameters"]}' 2>&1 | grep -aoE 'payload:"[^"]*"|message:"[^"]*"' | tail -1
 fi
 
 rm -f "$PKG"
