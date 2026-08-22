@@ -15,8 +15,8 @@
 import Fastify, { FastifyReply } from 'fastify';
 import cors from '@fastify/cors';
 
-import { DEMO_USERS, ORGS } from './identities';
-import { ChannelName, closeAll, evaluate, extractRefusal, submit } from './gateway';
+import { DEMO_USERS, ORGS } from './identities.js';
+import { ChannelName, closeAll, evaluate, extractRefusal, submit } from './gateway.js';
 
 const PORT = Number(process.env['PORT'] ?? 4000);
 
@@ -46,15 +46,28 @@ function actingUser(request: { headers: Record<string, unknown> }): string {
  * UI renders it as a decision, and the red-team suite asserts on `code`.
  */
 function handle(reply: FastifyReply, error: unknown): FastifyReply {
+  const message = error instanceof Error ? error.message : String(error);
+
+  // A client mistake is not a chaincode refusal, and must not be reported as
+  // one. Anything raised here with its own statusCode came from THIS layer —
+  // a missing identity header, malformed JSON — and its message happens to
+  // look like a refusal code (IDENTITY_REQUIRED: ...), so the pattern match
+  // below would otherwise mis-file it as a 422 policy decision. The red-team
+  // suite asserts on refusal codes; a typo must never look like a rule firing.
+  const ownStatus = (error as { statusCode?: number }).statusCode;
+  if (ownStatus) {
+    app.log.warn({ err: message }, 'client error');
+    return reply.code(ownStatus).send({ refused: false, error: message });
+  }
+
   const refusal = extractRefusal(error);
   if (refusal) {
     app.log.info({ refusal }, 'chaincode refusal');
     return reply.code(422).send({ refused: true, ...refusal });
   }
-  const message = error instanceof Error ? error.message : String(error);
-  const statusCode = (error as { statusCode?: number }).statusCode ?? 500;
+
   app.log.error({ err: message }, 'request failed');
-  return reply.code(statusCode).send({ refused: false, error: message });
+  return reply.code(500).send({ refused: false, error: message });
 }
 
 // ==========================================================================

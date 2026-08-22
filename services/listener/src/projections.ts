@@ -13,7 +13,7 @@
 import type { Network } from '@hyperledger/fabric-gateway';
 import type { Pool } from 'pg';
 
-import { daysToNextReferenceDate, ILLUSTRATIVE, loanEdi } from './edi';
+import { daysToNextReferenceDate, ILLUSTRATIVE, loanEdi } from './edi.js';
 
 export interface Context {
   channel: string;

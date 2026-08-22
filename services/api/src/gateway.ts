@@ -17,7 +17,7 @@ import { connect, Contract, Gateway, Network, signers } from '@hyperledger/fabri
 import * as grpc from '@grpc/grpc-js';
 import { createPrivateKey } from 'crypto';
 
-import { Credentials, loadCredentials } from './identities';
+import { Credentials, loadCredentials } from './identities.js';
 
 export type ChannelName = 'commitment' | 'exposure' | 'claims';
 
@@ -186,15 +186,52 @@ function parseResult<T>(payload: Uint8Array): T {
  * refusal reads as design.
  */
 export function extractRefusal(error: unknown): { code: string; message: string } | null {
-  const raw =
-    error instanceof Error
-      ? `${error.message} ${JSON.stringify((error as { details?: unknown }).details ?? '')}`
-      : String(error);
+  if (!(error instanceof Error)) return null;
 
-  // Contract errors are formatted as CODE: explanation.
-  const match = raw.match(/([A-Z][A-Z0-9_]{3,}):\s*([^"\\]{4,}?)(?:["\\]|$)/);
-  if (!match) return null;
-  return { code: match[1]!, message: `${match[1]}: ${match[2]!.trim()}` };
+  // ── Look in `details` FIRST, and this ordering is the whole point. ────────
+  //
+  // A fabric-gateway EndorseError's own `.message` is the gRPC status —
+  // "ABORTED: failed to endorse transaction, see attached details for more
+  // info". The message the CONTRACT actually wrote is nested in `.details[]`,
+  // one entry per endorsing peer.
+  //
+  // Match the outer message and Act 1 puts "ABORTED" on screen instead of
+  //   UNAUTHORISED_INSTITUTION: BankBMSP cannot write to an exposure held by
+  //   BankAMSP; no participant may write another institution's record
+  // which is the entire point of the refusal catalogue.
+  const details = (error as { details?: Array<{ message?: string }> }).details;
+  if (Array.isArray(details)) {
+    for (const detail of details) {
+      const refusal = matchRefusal(detail?.message ?? '');
+      if (refusal) return refusal;
+    }
+  }
+
+  // Evaluate (query) errors put the contract message on the error itself.
+  return matchRefusal(error.message);
+}
+
+/**
+ * Refusals are written as `CODE: explanation` (see the catalogue in
+ * chaincode/commitment/src/domain/errors.ts). gRPC status names are excluded
+ * so a transport failure is never mistaken for a policy decision.
+ */
+const GRPC_STATUS = new Set([
+  'ABORTED', 'UNKNOWN', 'UNAVAILABLE', 'INTERNAL', 'DEADLINE_EXCEEDED',
+  'FAILED_PRECONDITION', 'PERMISSION_DENIED', 'UNAUTHENTICATED',
+  'INVALID_ARGUMENT', 'NOT_FOUND', 'RESOURCE_EXHAUSTED', 'CANCELLED',
+]);
+
+function matchRefusal(text: string): { code: string; message: string } | null {
+  if (!text) return null;
+  // Chaincode errors surface as: "... message: CODE: explanation" or bare.
+  const pattern = /\b([A-Z][A-Z0-9_]{4,}):\s+(.+?)(?:\s*\[|$)/g;
+  for (const match of text.matchAll(pattern)) {
+    const code = match[1]!;
+    if (GRPC_STATUS.has(code)) continue;
+    return { code, message: `${code}: ${match[2]!.trim()}` };
+  }
+  return null;
 }
 
 export async function closeAll(): Promise<void> {

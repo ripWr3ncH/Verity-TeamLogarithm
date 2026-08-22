@@ -3,10 +3,10 @@
 **Making loan classification tamper-evident in Bangladesh's banking system.**
 Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
 
-> **Build status: Phase 4 of 5 — the network runs.** BFT ordering live, all three
-> chaincodes deployed, 15 identities enrolled, refusals firing and the Council
-> quorum flow completing end to end. 162/162 unit tests green. The web portals
-> are Phase 5. The section
+> **Build status: Phase 5 — the full back end runs.** BFT ordering, three chaincodes,
+> 15 identities, private data collections, the API returning real transaction
+> receipts, and the listener replaying the chain into the read model. 162/162 unit
+> tests green. The web portals are the remaining piece. The section
 > [What is built, and what is not](#what-is-built-and-what-is-not) is kept
 > honest at every commit. See [`HANDOFF/`](HANDOFF/) for where work stopped.
 
@@ -64,9 +64,9 @@ Kept current. We would rather state this than be asked.
 | EDI engine — equations (1) and (2), base-rate calibration | ✅ **32 tests** |
 | Deterministic synthetic seed data | ✅ **20 tests** |
 | Identities — 15 officers, CA-issued role attributes read by chaincode | ✅ **enrolled and verified** |
-| API gateway — one X.509 identity per officer | ⏳ typechecks, not yet run |
-| Block listener + read model, rebuildable from block 0 | ⏳ typechecks, not yet run |
-| Mock core banking system with a read-only adapter grant | ⏳ written, not yet run |
+| API gateway — one X.509 identity per officer | ✅ **running** — writes, reads, refusals, receipts |
+| Block listener + read model, rebuildable from block 0 | ✅ **running** — replays from block 0, 0 failures |
+| Mock core banking system with a read-only adapter grant | ✅ **running** — PostgreSQL refuses every adapter write |
 | Private data collections — the same query returns payload or hash by identity | ✅ **deployed and demonstrated** |
 | Bank officer · supervisor · depositor portals | ⏳ Phase 5 |
 | Red-team suite | 🔨 in progress — Act 3a done (`redteam/act3a.sh`) |

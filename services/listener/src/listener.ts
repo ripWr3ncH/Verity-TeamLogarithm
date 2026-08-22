@@ -25,8 +25,8 @@ import { createPrivateKey, randomUUID } from 'crypto';
 import { signers } from '@hyperledger/fabric-gateway';
 import pg from 'pg';
 
-import { loadCredentials } from './credentials';
-import { projectClaim, projectExposureAlert, projectLiabilityRoot, projectLifecycleEvent, projectParameterChange } from './projections';
+import { loadCredentials } from './credentials.js';
+import { projectClaim, projectExposureAlert, projectLiabilityRoot, projectLifecycleEvent, projectParameterChange } from './projections.js';
 
 const { Pool } = pg;
 
@@ -38,7 +38,7 @@ const LISTENER_IDENTITY = process.env['VERITY_LISTENER_IDENTITY'] ?? 'supervisor
 
 export const pool = new Pool({
   connectionString:
-    process.env['DATABASE_URL'] ?? 'postgres://verity:verity@localhost:5432/verity',
+    process.env['DATABASE_URL'] ?? 'postgres://verity:verity@localhost:5433/verity',
 });
 
 let gateway: Gateway | undefined;

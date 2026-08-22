@@ -35,7 +35,12 @@ services:
       POSTGRES_USER: verity
       POSTGRES_PASSWORD: verity
       POSTGRES_DB: verity
-    ports: ["5432:5432"]
+    # 5433 on the host, NOT 5432. A native PostgreSQL service is a common
+    # install on a developer machine, and when both bind 5432 the client
+    # silently reaches the wrong one and fails with
+    #   password authentication failed for user "verity"
+    # which looks like a credentials problem and is a port collision.
+    ports: ["5433:5432"]
     volumes:
       - verity-pgdata:/var/lib/postgresql/data
       # Applied in filename order on first start.
@@ -58,7 +63,7 @@ services:
     environment:
       PORT: 4000
       LOG_LEVEL: info
-      DATABASE_URL: postgres://verity:verity@postgres:5432/verity
+      DATABASE_URL: postgres://verity:verity@postgres:5432/verity   # in-network, so 5432 is correct here
       # Identities are read from the network's crypto material. One X.509 per
       # officer — never a shared service account (services/api/src/identities.ts).
       VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
@@ -78,7 +83,7 @@ services:
     labels:
       verity.role: listener
     environment:
-      DATABASE_URL: postgres://verity:verity@postgres:5432/verity
+      DATABASE_URL: postgres://verity:verity@postgres:5432/verity   # in-network, so 5432 is correct here
       VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
       VERITY_LISTENER_IDENTITY: supervisor-2
     volumes:
