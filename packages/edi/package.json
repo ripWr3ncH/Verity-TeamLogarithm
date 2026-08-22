@@ -1,0 +1,18 @@
+{
+  "name": "@verity/edi",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Evergreening Detection Index — equations (1) and (2) of whitepaper section 3.7.1",
+  "main": "dist/packages/edi/src/index.js",
+  "types": "dist/packages/edi/src/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test \"dist/packages/edi/test/*.test.js\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

@@ -1,0 +1,147 @@
+/**
+ * VERITY — the identity wallet.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  ONE X.509 PER PERSON. NO SHARED ADMIN IDENTITY IN THE DEMO PATH.
+ *
+ *  Every request is signed by the credentials of the officer making it. If this
+ *  service ever signed "as the bank" rather than as a named officer, three
+ *  things would quietly stop being true:
+ *
+ *    · Act 1's refusal — the chaincode reads role and seniority from the
+ *      CALLER'S CERTIFICATE. A shared identity has no officer to refuse.
+ *    · Act 3a's two-identity comparison — the whole point is that the same
+ *      query returns a payload to one certificate and a hash to another.
+ *    · Red-team #8 — revoking one officer must break their next write while
+ *      leaving their earlier events valid.
+ *
+ *  If you are tempted to add a service account "just for the seed script",
+ *  give the seed script its own registered adapter identity instead. There is
+ *  one: `adapter-banka`, role=adapter, seniority=1.
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+
+import { readdirSync, readFileSync } from "fs";
+import { join } from 'path';
+
+export interface OrgProfile {
+  mspId: string;
+  domain: string;
+  /** Host:port the gateway dials. */
+  peerEndpoint: string;
+  /** Must match the peer certificate's CN, or TLS fails with a name mismatch. */
+  peerHostAlias: string;
+}
+
+export const ORGS: Record<string, OrgProfile> = {
+  banka: {
+    mspId: 'BankAMSP',
+    domain: 'banka.verity.bd',
+    peerEndpoint: 'localhost:9051',
+    peerHostAlias: 'peer0.banka.verity.bd',
+  },
+  bankb: {
+    mspId: 'BankBMSP',
+    domain: 'bankb.verity.bd',
+    peerEndpoint: 'localhost:9061',
+    peerHostAlias: 'peer0.bankb.verity.bd',
+  },
+  bb: {
+    mspId: 'BangladeshBankMSP',
+    domain: 'bb.verity.bd',
+    peerEndpoint: 'localhost:9071',
+    peerHostAlias: 'peer0.bb.verity.bd',
+  },
+  frc: {
+    mspId: 'FRCMSP',
+    domain: 'frc.verity.bd',
+    peerEndpoint: 'localhost:9081',
+    peerHostAlias: 'peer0.frc.verity.bd',
+  },
+};
+
+export interface DemoUser {
+  id: string;
+  org: keyof typeof ORGS;
+  role: string;
+  seniority: number;
+  displayName: string;
+  /** Shown in the portal's identity switcher so the demo driver never guesses. */
+  portal: 'bank' | 'supervisor' | 'depositor' | 'none';
+}
+
+/**
+ * Mirrors network/scripts/enroll-users.sh. Keep the two in step — this list is
+ * only a directory; the ATTRIBUTES that matter live in the certificates.
+ */
+export const DEMO_USERS: DemoUser[] = [
+  { id: 'officer-rahim', org: 'banka', role: 'sanctioning_officer', seniority: 2, displayName: 'Rahim Uddin', portal: 'bank' },
+  { id: 'officer-nasrin', org: 'banka', role: 'reviewing_officer', seniority: 3, displayName: 'Nasrin Akhter', portal: 'bank' },
+  { id: 'officer-kamal', org: 'banka', role: 'sanctioning_officer', seniority: 2, displayName: 'Kamal Hossain', portal: 'bank' },
+  { id: 'md-banka', org: 'banka', role: 'mdceo', seniority: 5, displayName: 'Managing Director', portal: 'bank' },
+  { id: 'director-1', org: 'banka', role: 'director', seniority: 5, displayName: 'Director One', portal: 'bank' },
+  { id: 'director-2', org: 'banka', role: 'director', seniority: 5, displayName: 'Director Two', portal: 'bank' },
+  { id: 'director-3', org: 'banka', role: 'director', seniority: 5, displayName: 'Director Three', portal: 'bank' },
+  { id: 'adapter-banka', org: 'banka', role: 'adapter', seniority: 1, displayName: 'CBS adapter', portal: 'none' },
+
+  { id: 'officer-shirin', org: 'bankb', role: 'sanctioning_officer', seniority: 2, displayName: 'Shirin Sultana', portal: 'bank' },
+  { id: 'officer-tanvir', org: 'bankb', role: 'reviewing_officer', seniority: 3, displayName: 'Tanvir Ahmed', portal: 'bank' },
+  { id: 'md-bankb', org: 'bankb', role: 'mdceo', seniority: 5, displayName: 'Managing Director', portal: 'bank' },
+  { id: 'adapter-bankb', org: 'bankb', role: 'adapter', seniority: 1, displayName: 'CBS adapter', portal: 'none' },
+
+  { id: 'supervisor-1', org: 'bb', role: 'supervisor', seniority: 5, displayName: 'Supervisory officer', portal: 'supervisor' },
+  { id: 'supervisor-2', org: 'bb', role: 'supervisor', seniority: 5, displayName: 'Supervisory officer', portal: 'supervisor' },
+
+  { id: 'frc-analyst', org: 'frc', role: 'frc', seniority: 4, displayName: 'FRC analyst', portal: 'supervisor' },
+];
+
+export interface Credentials {
+  mspId: string;
+  certificate: Buffer;
+  privateKeyPem: Buffer;
+  tlsRootCert: Buffer;
+  peerEndpoint: string;
+  peerHostAlias: string;
+}
+
+const CRYPTO_ROOT =
+  process.env['VERITY_CRYPTO_PATH'] ??
+  join(process.cwd(), '..', '..', 'network', 'organizations', 'peerOrganizations');
+
+export function loadCredentials(userId: string): Credentials {
+  const user = DEMO_USERS.find((u) => u.id === userId);
+  if (!user) throw new Error(`UNKNOWN_IDENTITY: no enrolled identity '${userId}'`);
+
+  const org = ORGS[user.org]!;
+  const userMsp = join(CRYPTO_ROOT, org.domain, 'users', `${userId}@${org.domain}`, 'msp');
+
+  return {
+    mspId: org.mspId,
+    certificate: readFileSync(firstFileIn(join(userMsp, 'signcerts'))),
+    privateKeyPem: readFileSync(firstFileIn(join(userMsp, 'keystore'))),
+    tlsRootCert: readFileSync(
+      join(CRYPTO_ROOT, org.domain, 'peers', `peer0.${org.domain}`, 'tls', 'ca.crt'),
+    ),
+    peerEndpoint: org.peerEndpoint,
+    peerHostAlias: org.peerHostAlias,
+  };
+}
+
+/**
+ * Fabric CA and cryptogen name key files differently — `priv_sk`, or a long
+ * hash, or `cert.pem`. Take whatever is in the directory rather than guessing,
+ * which is the same lesson as `normaliseSigncerts` in network.sh.
+ */
+function firstFileIn(dir: string): string {
+  let entries: string[];
+  try {
+    entries = readdirSync(dir).filter((f) => !f.startsWith('.'));
+  } catch {
+    throw new Error(
+      `CREDENTIALS_MISSING: ${dir} does not exist. Has ./network.sh up and ` +
+        './scripts/enroll-users.sh been run?',
+    );
+  }
+  if (entries.length === 0) throw new Error(`CREDENTIALS_MISSING: ${dir} is empty`);
+  return join(dir, entries[0]!);
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@verity/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Fabric gateway API — one X.509 identity per acting officer",
+  "main": "dist/server.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.0.1",
+    "@grpc/grpc-js": "^1.12.4",
+    "@hyperledger/fabric-gateway": "^1.7.0",
+    "fastify": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

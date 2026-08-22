@@ -1,0 +1,90 @@
+# ==========================================================================
+#  VERITY — off-chain services.
+#
+#  Two Postgres SCHEMAS in one instance, and the separation is the point:
+#
+#    cbs        the mock core banking system — the legacy estate Verity reads
+#               and CANNOT WRITE. §4.3: the adapter is read-only, enforced by
+#               a database grant rather than by application convention.
+#
+#    readmodel  the projection rebuilt from block 0 by the listener. Not a
+#               source of truth. The supervisor portal wipes and replays it
+#               live, which is the cleanest answer to "is this really on a
+#               blockchain?"
+#
+#  Peers deliberately run LevelDB rather than CouchDB, so rich queries live
+#  here. Standard Fabric practice, and it halves container memory on a laptop.
+# ==========================================================================
+
+networks:
+  verity:
+    name: verity_net
+    external: true
+
+volumes:
+  verity-pgdata:
+
+services:
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: verity-postgres
+    labels:
+      verity.role: datastore
+    environment:
+      POSTGRES_USER: verity
+      POSTGRES_PASSWORD: verity
+      POSTGRES_DB: verity
+    ports: ["5432:5432"]
+    volumes:
+      - verity-pgdata:/var/lib/postgresql/data
+      # Applied in filename order on first start.
+      - ./cbs-mock/schema.sql:/docker-entrypoint-initdb.d/10-cbs.sql:ro
+      - ./listener/readmodel.sql:/docker-entrypoint-initdb.d/20-readmodel.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U verity -d verity"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    networks: [verity]
+
+  api:
+    build:
+      context: ..
+      dockerfile: services/api/Dockerfile
+    container_name: verity-api
+    labels:
+      verity.role: api
+    environment:
+      PORT: 4000
+      LOG_LEVEL: info
+      DATABASE_URL: postgres://verity:verity@postgres:5432/verity
+      # Identities are read from the network's crypto material. One X.509 per
+      # officer — never a shared service account (services/api/src/identities.ts).
+      VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
+    ports: ["4000:4000"]
+    volumes:
+      - ../network/organizations:/verity/network/organizations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [verity]
+
+  listener:
+    build:
+      context: ..
+      dockerfile: services/listener/Dockerfile
+    container_name: verity-listener
+    labels:
+      verity.role: listener
+    environment:
+      DATABASE_URL: postgres://verity:verity@postgres:5432/verity
+      VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
+      VERITY_LISTENER_IDENTITY: supervisor-2
+    volumes:
+      - ../network/organizations:/verity/network/organizations:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [verity]

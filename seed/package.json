@@ -1,0 +1,18 @@
+{
+  "name": "@verity/seed",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Deterministic synthetic portfolios, including the whitepaper Table 2 fixtures",
+  "main": "dist/seed/src/index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test \"dist/seed/test/*.test.js\"",
+    "generate": "npm run build && node dist/seed/src/cli.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}

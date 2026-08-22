@@ -1,0 +1,24 @@
+{
+  "name": "@verity/listener",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Block listener — projects committed ledger events into the off-chain read model",
+  "main": "dist/listener.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/listener.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.4",
+    "@hyperledger/fabric-gateway": "^1.7.0",
+    "pg": "^8.13.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "typescript": "^5.7.2"
+  }
+}
