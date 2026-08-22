@@ -1,0 +1,420 @@
+# ==========================================================================
+#  VERITY — Fabric channel configuration
+#
+#  Whitepaper basis:
+#    §4.1  Ordering service: SmartBFT. Ordering organisations are Bangladesh
+#          Bank, BIBM, the Financial Reporting Council and two rotating bank
+#          seats — five nodes, so BFT (n >= 3f+1) tolerates f = 1.
+#    §4.2  Channels: commitment, exposure, claims.
+#    §4.5  Bangladesh Bank holds endorsement and querying rights on every
+#          channel FROM GENESIS and cannot be voted out by participating banks.
+#
+#  Generate a channel genesis block:
+#    configtxgen -profile VerityCommitment -outputBlock ./channel-artifacts/commitment.block -channelID commitment
+# ==========================================================================
+
+################################################################################
+#   ORGANIZATIONS
+################################################################################
+Organizations:
+
+  # ---- Ordering organisations (5) — §4.1 ----------------------------------
+  # These order transactions. They never read application data (§4.4 Table 3:
+  # "order only, no read").
+
+  - &OrdererBB
+    Name: OrdererBBMSP
+    ID: OrdererBBMSP
+    MSPDir: ../organizations/ordererOrganizations/ord-bb.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererBBMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererBBMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererBBMSP.admin')"
+    OrdererEndpoints:
+      - orderer0.ord-bb.verity.bd:7050
+
+  - &OrdererBIBM
+    Name: OrdererBIBMMSP
+    ID: OrdererBIBMMSP
+    MSPDir: ../organizations/ordererOrganizations/ord-bibm.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererBIBMMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererBIBMMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererBIBMMSP.admin')"
+    OrdererEndpoints:
+      - orderer1.ord-bibm.verity.bd:7051
+
+  - &OrdererFRC
+    Name: OrdererFRCMSP
+    ID: OrdererFRCMSP
+    MSPDir: ../organizations/ordererOrganizations/ord-frc.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererFRCMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererFRCMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererFRCMSP.admin')"
+    OrdererEndpoints:
+      - orderer2.ord-frc.verity.bd:7052
+
+  # The two rotating bank seats. §4.1: "The two bank seats are drawn from the
+  # supervised population, so simultaneous defection would exceed the model;
+  # the seats therefore rotate on a fixed Council schedule."
+  - &OrdererSeatA
+    Name: OrdererSeatAMSP
+    ID: OrdererSeatAMSP
+    MSPDir: ../organizations/ordererOrganizations/ord-seata.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererSeatAMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererSeatAMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererSeatAMSP.admin')"
+    OrdererEndpoints:
+      - orderer3.ord-seata.verity.bd:7053
+
+  - &OrdererSeatB
+    Name: OrdererSeatBMSP
+    ID: OrdererSeatBMSP
+    MSPDir: ../organizations/ordererOrganizations/ord-seatb.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererSeatBMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererSeatBMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererSeatBMSP.admin')"
+    OrdererEndpoints:
+      - orderer4.ord-seatb.verity.bd:7054
+
+  # ---- Peer organisations (4) — §4.2 --------------------------------------
+
+  # Sammilito Islami Bank PLC — the resolution entity, Phase 1 participant (§6).
+  - &BankA
+    Name: BankAMSP
+    ID: BankAMSP
+    MSPDir: ../organizations/peerOrganizations/banka.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('BankAMSP.admin', 'BankAMSP.peer', 'BankAMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('BankAMSP.admin', 'BankAMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('BankAMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('BankAMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.banka.verity.bd
+        Port: 9051
+
+  # Meghna Bank — synthetic second institution. Required to make Module II
+  # (cross-bank aggregation) and the private-data privacy demo real.
+  - &BankB
+    Name: BankBMSP
+    ID: BankBMSP
+    MSPDir: ../organizations/peerOrganizations/bankb.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('BankBMSP.admin', 'BankBMSP.peer', 'BankBMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('BankBMSP.admin', 'BankBMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('BankBMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('BankBMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.bankb.verity.bd
+        Port: 9061
+
+  # Bangladesh Bank — the supervisor. Endorses every lifecycle event (§3.8 step 4).
+  - &BangladeshBank
+    Name: BangladeshBankMSP
+    ID: BangladeshBankMSP
+    MSPDir: ../organizations/peerOrganizations/bb.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('BangladeshBankMSP.admin', 'BangladeshBankMSP.peer', 'BangladeshBankMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('BangladeshBankMSP.admin', 'BangladeshBankMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('BangladeshBankMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('BangladeshBankMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.bb.verity.bd
+        Port: 9071
+
+  # Financial Reporting Council — query peer only. §4.4 Table 3: read all,
+  # borrower identity NEVER.
+  - &FRC
+    Name: FRCMSP
+    ID: FRCMSP
+    MSPDir: ../organizations/peerOrganizations/frc.verity.bd/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('FRCMSP.admin', 'FRCMSP.peer', 'FRCMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('FRCMSP.admin', 'FRCMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('FRCMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('FRCMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.frc.verity.bd
+        Port: 9081
+
+################################################################################
+#   CAPABILITIES
+################################################################################
+Capabilities:
+  Channel: &ChannelCapabilities
+    V3_0: true          # required for BFT ordering
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_5: true          # required for purge of private data (§3.7 immutability note)
+
+################################################################################
+#   APPLICATION
+################################################################################
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+################################################################################
+#   ORDERER — SmartBFT (§4.1)
+################################################################################
+Orderer: &OrdererDefaults
+  OrdererType: BFT
+
+  Addresses:
+    - orderer0.ord-bb.verity.bd:7050
+    - orderer1.ord-bibm.verity.bd:7051
+    - orderer2.ord-frc.verity.bd:7052
+    - orderer3.ord-seata.verity.bd:7053
+    - orderer4.ord-seatb.verity.bd:7054
+
+  BatchTimeout: 2s
+  BatchSize:
+    MaxMessageCount: 10
+    AbsoluteMaxBytes: 10 MB
+    PreferredMaxBytes: 2 MB
+
+  # SmartBFT tuning. These are the Fabric defaults written out explicitly so
+  # the values are auditable. If configtxgen rejects a field on your Fabric
+  # version, delete that line — omitted fields fall back to defaults.
+  SmartBFT:
+    RequestBatchMaxCount: 100
+    RequestBatchMaxInterval: 50ms
+    IncomingMessageBufferSize: 200
+    RequestPoolSize: 100000
+    RequestForwardTimeout: 2s
+    RequestComplainTimeout: 20s
+    RequestAutoRemoveTimeout: 3m0s
+    ViewChangeResendInterval: 5s
+    ViewChangeTimeout: 20s
+    LeaderHeartbeatTimeout: 1m0s
+    LeaderHeartbeatCount: 10
+    CollectTimeout: 1s
+    SyncOnStart: true
+    SpeedUpViewChange: false
+    LeaderRotation: 0
+    DecisionsPerLeader: 3
+
+  # The five consenters. n = 5, BFT tolerates f = 1 (n >= 3f+1).
+  # Expansion to seven organisations raises tolerance to f = 2 (§4.1).
+  ConsenterMapping:
+    - ID: 1
+      Host: orderer0.ord-bb.verity.bd
+      Port: 7050
+      MSPID: OrdererBBMSP
+      Identity: ../organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: ../organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/tls/server.crt
+      ServerTLSCert: ../organizations/ordererOrganizations/ord-bb.verity.bd/orderers/orderer0.ord-bb.verity.bd/tls/server.crt
+    - ID: 2
+      Host: orderer1.ord-bibm.verity.bd
+      Port: 7051
+      MSPID: OrdererBIBMMSP
+      Identity: ../organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: ../organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/tls/server.crt
+      ServerTLSCert: ../organizations/ordererOrganizations/ord-bibm.verity.bd/orderers/orderer1.ord-bibm.verity.bd/tls/server.crt
+    - ID: 3
+      Host: orderer2.ord-frc.verity.bd
+      Port: 7052
+      MSPID: OrdererFRCMSP
+      Identity: ../organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: ../organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/tls/server.crt
+      ServerTLSCert: ../organizations/ordererOrganizations/ord-frc.verity.bd/orderers/orderer2.ord-frc.verity.bd/tls/server.crt
+    - ID: 4
+      Host: orderer3.ord-seata.verity.bd
+      Port: 7053
+      MSPID: OrdererSeatAMSP
+      Identity: ../organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: ../organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/tls/server.crt
+      ServerTLSCert: ../organizations/ordererOrganizations/ord-seata.verity.bd/orderers/orderer3.ord-seata.verity.bd/tls/server.crt
+    - ID: 5
+      Host: orderer4.ord-seatb.verity.bd
+      Port: 7054
+      MSPID: OrdererSeatBMSP
+      Identity: ../organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/msp/signcerts/cert.pem
+      ClientTLSCert: ../organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/tls/server.crt
+      ServerTLSCert: ../organizations/ordererOrganizations/ord-seatb.verity.bd/orderers/orderer4.ord-seatb.verity.bd/tls/server.crt
+
+  Organizations:
+
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    # BFT block validation. Must be ImplicitOrderer/SMARTBFT for OrdererType: BFT.
+    BlockValidation:
+      Type: ImplicitOrderer
+      Rule: SMARTBFT
+
+################################################################################
+#   CHANNEL DEFAULTS
+################################################################################
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+################################################################################
+#   PROFILES — one per channel (§4.2)
+################################################################################
+Profiles:
+
+  # commitment — lifecycle events, authority evidence, governance parameters,
+  # access log. All four peer organisations.
+  VerityCommitment:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererBB
+        - *OrdererBIBM
+        - *OrdererFRC
+        - *OrdererSeatA
+        - *OrdererSeatB
+      Capabilities: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *BankA
+        - *BankB
+        - *BangladeshBank
+        - *FRC
+      Capabilities: *ApplicationCapabilities
+
+  # exposure — Paillier ciphertexts, group-token attestations, aggregates.
+  # FRC is NOT a member: §4.4 Table 3 gives FRC no access to exposure ciphertexts.
+  VerityExposure:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererBB
+        - *OrdererBIBM
+        - *OrdererFRC
+        - *OrdererSeatA
+        - *OrdererSeatB
+      Capabilities: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *BankA
+        - *BankB
+        - *BangladeshBank
+      Capabilities: *ApplicationCapabilities
+
+  # claims — liability roots and claim tokens.
+  # BankB is NOT a member: only the resolution entity issues claims (§6 Phase 1).
+  VerityClaims:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      Organizations:
+        - *OrdererBB
+        - *OrdererBIBM
+        - *OrdererFRC
+        - *OrdererSeatA
+        - *OrdererSeatB
+      Capabilities: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *BankA
+        - *BangladeshBank
+        - *FRC
+      Capabilities: *ApplicationCapabilities

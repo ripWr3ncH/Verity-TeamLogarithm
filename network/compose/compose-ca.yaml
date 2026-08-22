@@ -1,0 +1,104 @@
+# ==========================================================================
+#  VERITY — Fabric CA per peer organisation.
+#
+#  Whitepaper §4.4:
+#    "Every actor holds a Fabric MSP identity issued under its own
+#     organisation's CA. Bank officers carry role attributes (sanctioning
+#     officer, reviewing officer, MD/CEO, director) that chaincode reads when
+#     validating authority evidence […] Revocation is by MSP CRL, so a departed
+#     officer cannot sign a later event while their earlier signatures remain
+#     valid."
+#
+#  ── WHY A CA AT ALL, WHEN CRYPTOGEN ALREADY MADE THE CERTIFICATES ─────────
+#
+#  cryptogen cannot do the two things §4.4 needs:
+#    1. ATTRIBUTES on a certificate — role, seniority, institution — which
+#       chaincode reads via ClientIdentity.getAttributeValue(). Without them,
+#       role would be something the client asserts, and the whole
+#       authority-evidence story would be theatre.
+#    2. REVOCATION — `fabric-ca-client revoke` + `gencrl`, which is red-team
+#       attack #8 and §4.4's exact claim.
+#
+#  Each CA below ADOPTS THE ROOT cryptogen already generated
+#  (FABRIC_CA_SERVER_CA_CERTFILE / _KEYFILE), so CA-issued users chain to the
+#  same root as the peers and are valid in the same MSP. That is what lets the
+#  two tools coexist.
+# ==========================================================================
+
+networks:
+  verity:
+    name: verity_net
+    external: true
+
+x-ca-base: &ca-base
+  image: hyperledger/fabric-ca:${CA_VERSION:-1.5}
+  labels:
+    service: hyperledger-fabric
+    verity.role: ca
+  environment: &ca-env
+    FABRIC_CA_HOME: /etc/hyperledger/fabric-ca-server
+    FABRIC_CA_SERVER_TLS_ENABLED: "false"     # prototype: plain HTTP on a private network
+    FABRIC_CA_SERVER_CSR_HOSTS: "0.0.0.0,localhost"
+    FABRIC_CA_SERVER_DEBUG: "false"
+  command: sh -c 'fabric-ca-server start -b admin:adminpw -d'
+  networks:
+    - verity
+
+services:
+
+  # ---- Sammilito Islami Bank ------------------------------------------------
+  ca-banka:
+    <<: *ca-base
+    container_name: ca-banka
+    environment:
+      <<: *ca-env
+      FABRIC_CA_SERVER_CA_NAME: ca-banka
+      FABRIC_CA_SERVER_PORT: 10054
+      # Adopt the root cryptogen produced, so issued users are valid in BankAMSP.
+      FABRIC_CA_SERVER_CA_CERTFILE: /etc/hyperledger/fabric-ca-server/ca-cert.pem
+      FABRIC_CA_SERVER_CA_KEYFILE: /etc/hyperledger/fabric-ca-server/ca-key.pem
+    ports: ["10054:10054"]
+    volumes:
+      - ../organizations/peerOrganizations/banka.verity.bd/ca:/etc/hyperledger/fabric-ca-server
+
+  # ---- Meghna Bank ----------------------------------------------------------
+  ca-bankb:
+    <<: *ca-base
+    container_name: ca-bankb
+    environment:
+      <<: *ca-env
+      FABRIC_CA_SERVER_CA_NAME: ca-bankb
+      FABRIC_CA_SERVER_PORT: 10064
+      FABRIC_CA_SERVER_CA_CERTFILE: /etc/hyperledger/fabric-ca-server/ca-cert.pem
+      FABRIC_CA_SERVER_CA_KEYFILE: /etc/hyperledger/fabric-ca-server/ca-key.pem
+    ports: ["10064:10064"]
+    volumes:
+      - ../organizations/peerOrganizations/bankb.verity.bd/ca:/etc/hyperledger/fabric-ca-server
+
+  # ---- Bangladesh Bank ------------------------------------------------------
+  ca-bb:
+    <<: *ca-base
+    container_name: ca-bb
+    environment:
+      <<: *ca-env
+      FABRIC_CA_SERVER_CA_NAME: ca-bb
+      FABRIC_CA_SERVER_PORT: 10074
+      FABRIC_CA_SERVER_CA_CERTFILE: /etc/hyperledger/fabric-ca-server/ca-cert.pem
+      FABRIC_CA_SERVER_CA_KEYFILE: /etc/hyperledger/fabric-ca-server/ca-key.pem
+    ports: ["10074:10074"]
+    volumes:
+      - ../organizations/peerOrganizations/bb.verity.bd/ca:/etc/hyperledger/fabric-ca-server
+
+  # ---- Financial Reporting Council -------------------------------------------
+  ca-frc:
+    <<: *ca-base
+    container_name: ca-frc
+    environment:
+      <<: *ca-env
+      FABRIC_CA_SERVER_CA_NAME: ca-frc
+      FABRIC_CA_SERVER_PORT: 10084
+      FABRIC_CA_SERVER_CA_CERTFILE: /etc/hyperledger/fabric-ca-server/ca-cert.pem
+      FABRIC_CA_SERVER_CA_KEYFILE: /etc/hyperledger/fabric-ca-server/ca-key.pem
+    ports: ["10084:10084"]
+    volumes:
+      - ../organizations/peerOrganizations/frc.verity.bd/ca:/etc/hyperledger/fabric-ca-server
