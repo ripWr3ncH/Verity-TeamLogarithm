@@ -1,0 +1,18 @@
+{
+  "name": "@verity/crypto",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Paillier aggregation, threshold ceremony, and signed-leaf Merkle sum trees",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test \"dist/test/*.test.js\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}
