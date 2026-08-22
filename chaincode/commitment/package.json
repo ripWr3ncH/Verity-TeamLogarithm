@@ -1,0 +1,26 @@
+{
+  "name": "verity-commitment-chaincode",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VERITY commitment channel — lifecycle events, governance parameters, supervisory access log",
+  "main": "dist/src/index.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "start": "fabric-chaincode-node start",
+    "test": "npm run build && node --test \"dist/test/*.test.js\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fabric-contract-api": "^2.5.4",
+    "fabric-shim": "^2.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}
