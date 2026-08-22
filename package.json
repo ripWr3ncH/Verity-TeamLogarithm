@@ -1,0 +1,32 @@
+{
+  "name": "verity",
+  "version": "0.1.0",
+  "private": true,
+  "description": "VERITY — making loan classification tamper-evident. BCOLBD 2026 prototype, Team Logarithm.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "//workspaces": [
+    "chaincode/* is deliberately NOT a workspace. Fabric packages a chaincode",
+    "directory and runs `npm install` inside the peer's build container, where",
+    "workspace symlinks do not resolve. Each chaincode is self-contained."
+  ],
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "web"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:chaincode": "npm --prefix chaincode/commitment test && npm --prefix chaincode/exposure test && npm --prefix chaincode/claims test",
+    "install:chaincode": "npm --prefix chaincode/commitment install && npm --prefix chaincode/exposure install && npm --prefix chaincode/claims install"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2"
+  }
+}
