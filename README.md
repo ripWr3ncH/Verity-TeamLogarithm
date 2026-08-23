@@ -62,8 +62,8 @@ Kept current. We would rather state this than be asked.
 | Governance chaincode — Council parameters, quorum-gated change | ✅ **deployed and verified live** |
 | Supervisory access log — every regulator read recorded | ✅ deployed |
 | Cryptography — Paillier, Shamir, supervisor-plus-quorum ceremony, Merkle sum | ✅ **43 tests** |
-| Exposure chaincode — on-chain aggregation, proof-checked ceremony results | ✅ **deployed**, 17 tests |
-| Liability + claims chaincode — signed-leaf roots, claim tokens | ✅ **deployed**, 12 tests |
+| Module II — encrypted cross-bank exposure | ✅ **run end to end** — alert on G-0447 at Tk 950 vs 625 crore |
+| Modules III & IV — signed-leaf liabilities, claim tokens | ✅ **run end to end** — 250 depositors, 8-step proof |
 | EDI engine — equations (1) and (2), base-rate calibration | ✅ **32 tests** |
 | Deterministic synthetic seed data | ✅ **20 tests** |
 | Identities — 15 officers, CA-issued role attributes read by chaincode | ✅ **enrolled and verified** |
@@ -71,7 +71,9 @@ Kept current. We would rather state this than be asked.
 | Block listener + read model, rebuildable from block 0 | ✅ **running** — replays from block 0, 0 failures |
 | Mock core banking system with a read-only adapter grant | ✅ **running** — PostgreSQL refuses every adapter write |
 | Private data collections — the same query returns payload or hash by identity | ✅ **deployed and demonstrated** |
-| Bank officer · supervisor · depositor portals | ✅ **built** — Act 1 verified end to end |
+| Bank officer portal | ✅ Act 1 verified end to end |
+| Supervisor portal | ✅ ranked queue over 828 exposures, base-rate histogram |
+| Depositor portal | ✅ reads the real committed root; verifies twice |
 | Board registry — real k-of-n ed25519 threshold | ✅ **registered and verified** |
 | Red-team suite | ✅ **8/8 attacks refused**, including live CRL revocation |
 | Byzantine fault tolerance | ✅ **demonstrated** — commits with an orderer down (`redteam/orderer-fault.sh`) |

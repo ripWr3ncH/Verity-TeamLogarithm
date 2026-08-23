@@ -444,6 +444,30 @@ app.post<{ Params: { id: string } }>('/governance/proposals/:id/activate', async
 //  Module II — exposure
 // ==========================================================================
 
+/**
+ * Open an aggregation period by publishing the Paillier PUBLIC key.
+ *
+ * Public by definition — it is what banks encrypt under and what anyone uses to
+ * check a decryption proof. The matching private key never comes near this
+ * service: it is split across Bangladesh Bank and the independent holders
+ * (packages/crypto/ceremony.ts), and no single party can reassemble it.
+ */
+app.post<{ Body: { period: string; publicKey: unknown } }>(
+  '/exposure/key',
+  async (request, reply) => {
+    try {
+      const b = request.body;
+      const out = await submit(actingUser(request), 'exposure', 'ExposureContract', 'SetAggregationKey', [
+        b.period,
+        JSON.stringify(b.publicKey),
+      ]);
+      return reply.code(201).send(out);
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
 app.post<{ Body: { period: string; groupToken: string; ciphertext: string } }>(
   '/exposure/submissions',
   async (request, reply) => {
@@ -472,6 +496,29 @@ app.post<{ Body: { period: string; groupToken: string; minContributors?: number 
         b.period,
         b.groupToken,
         String(b.minContributors ?? 2),
+      ]);
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
+/**
+ * The COMMITTED aggregate ciphertext.
+ *
+ * A ceremony must open exactly this — not a locally recomputed product.
+ * Paillier encryption is randomised, so re-encrypting the same exposures gives
+ * a different ciphertext, and a proof over it is refused with
+ * DECRYPTION_PROOF_INVALID. That refusal is the integrity check working; this
+ * route is how a ceremony avoids tripping it.
+ */
+app.get<{ Params: { period: string; group: string } }>(
+  '/exposure/aggregate/:period/:group',
+  async (request, reply) => {
+    try {
+      return await evaluate(actingUser(request), 'exposure', 'ExposureContract', 'GetAggregate', [
+        request.params.period,
+        request.params.group,
       ]);
     } catch (error) {
       return handle(reply, error);
@@ -550,6 +597,68 @@ app.post<{ Body: { institutionMsp: string; period: string; proof: unknown } }>(
     }
   },
 );
+
+/**
+ * The depositor's own position — account, balance, inclusion proof, claim.
+ *
+ * Written by scripts/run-liability-commitment.mjs, which builds the signed-leaf
+ * tree and commits its root. Serving it here keeps the depositor portal honest:
+ * the proof it verifies is over a root that is actually on the ledger, not a
+ * shape invented in the browser.
+ *
+ * In deployment a depositor authenticates against national identity (§4.4) and
+ * this returns THEIR leaf. There is no authentication here, and the page says
+ * so — one synthetic depositor, for the demo.
+ */
+app.get('/depositor/session', async (_request, reply) => {
+  try {
+    const path = process.env['VERITY_DEPOSITOR_FIXTURE']
+      ?? resolve(process.cwd(), '..', '..', 'seed', 'out', 'depositor.json');
+    return JSON.parse(readFileSync(path, 'utf8'));
+  } catch {
+    return reply.code(503).send({
+      refused: false,
+      error:
+        'DEPOSITOR_NOT_COMMITTED: no liability commitment yet. ' +
+        'Run: node scripts/run-liability-commitment.mjs',
+    });
+  }
+});
+
+/**
+ * Issue a claim token against a depositor's signed leaf (§3.7.4).
+ *
+ * There is no counterpart to this route for TRANSFER, and there must never be
+ * one — §7.4 #9 asserts no legal authority for a secondary market in
+ * resolution claims. The chaincode refuses it too.
+ */
+app.post<{
+  Body: {
+    claimId: string;
+    leafHash: string;
+    period: string;
+    depositorKey: string;
+    faceValue: string;
+    priorityClass: string;
+    schedule: string;
+  };
+}>('/claims', async (request, reply) => {
+  try {
+    const b = request.body;
+    const out = await submit(actingUser(request), 'claims', 'ClaimsContract', 'IssueClaim', [
+      b.claimId,
+      b.leafHash,
+      b.period,
+      b.depositorKey,
+      b.faceValue,
+      b.priorityClass,
+      b.schedule,
+    ]);
+    return reply.code(201).send(out);
+  } catch (error) {
+    return handle(reply, error);
+  }
+});
 
 app.get<{ Params: { key: string } }>('/claims/depositor/:key', async (request, reply) => {
   try {
