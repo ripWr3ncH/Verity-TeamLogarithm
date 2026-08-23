@@ -23,6 +23,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { RefusalPanel } from '@/components/Outcome';
 import { BaseRateChart, SupervisoryQueue } from '@/components/Queue';
+import { ReconciliationPanel } from '@/components/Reconciliation';
 import { useIdentity } from '@/components/Shell';
 import {
   api,
@@ -175,6 +176,10 @@ export default function SupervisorPortal(): React.ReactNode {
           §4.6 — no participant can tune the system to its own advantage. Changing one needs a Council quorum.
         </p>
       </div>
+
+      {/* ---------- Act 0: what the return leaves out ---------- */}
+      <h2>The quarterly return, and what it omits</h2>
+      <ReconciliationPanel identity={identity} onOpen={(id) => { setLoanId(id); void supervise(id); }} />
 
       {/* ---------- Act 2 ---------- */}
       <h2>The book</h2>

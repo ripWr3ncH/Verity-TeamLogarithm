@@ -21,6 +21,7 @@ import cors from '@fastify/cors';
 
 import { DEMO_USERS, ORGS } from './identities.js';
 import { ChannelName, closeAll, evaluate, extractRefusal, submit } from './gateway.js';
+import * as cbs from './cbs.js';
 import * as readmodel from './readmodel.js';
 
 const PORT = Number(process.env['PORT'] ?? 4000);
@@ -184,6 +185,33 @@ app.get('/portfolios', async (request, reply) => {
   try {
     actingUser(request);
     return { institutions: await readmodel.portfolios(), checkpoints: await readmodel.checkpoints() };
+  } catch (error) {
+    return handle(reply, error);
+  }
+});
+
+// ==========================================================================
+//  Legacy integration — the read-only adapter and CL-1 reconciliation
+// ==========================================================================
+
+/**
+ * Attempt a write through the adapter and report the refusal.
+ * §4.3 becomes checkable rather than argued.
+ */
+app.get('/cbs/adapter', async (request, reply) => {
+  try {
+    actingUser(request);
+    return await cbs.proveReadOnly();
+  } catch (error) {
+    return handle(reply, error);
+  }
+});
+
+/** The omission check. §3.7.1 — a loan on the ledger but absent from the return. */
+app.get<{ Params: { date: string } }>('/reconciliation/:date', async (request, reply) => {
+  try {
+    actingUser(request);
+    return await cbs.reconcile(request.params.date);
   } catch (error) {
     return handle(reply, error);
   }

@@ -69,7 +69,9 @@ Kept current. We would rather state this than be asked.
 | Identities — 15 officers, CA-issued role attributes read by chaincode | ✅ **enrolled and verified** |
 | API gateway — one X.509 identity per officer | ✅ **running** — writes, reads, refusals, receipts |
 | Block listener + read model, rebuildable from block 0 | ✅ **running** — replays from block 0, 0 failures |
-| Mock core banking system with a read-only adapter grant | ✅ **running** — PostgreSQL refuses every adapter write |
+| Mock core banking system | ✅ **806 loans, 500 accounts, CL-1 filed** |
+| Read-only adapter | ✅ API connects as `verity_adapter`; PostgreSQL refuses its writes |
+| CL-1 reconciliation | ✅ **omission check live** — exposures on the ledger, absent from the return |
 | Private data collections — the same query returns payload or hash by identity | ✅ **deployed and demonstrated** |
 | Bank officer portal | ✅ Act 1 verified end to end |
 | Supervisor portal | ✅ ranked queue over 828 exposures, base-rate histogram |
