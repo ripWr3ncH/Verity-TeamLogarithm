@@ -22,6 +22,7 @@ network/organizations/ordererOrganizations/
 network/organizations/fabric-ca/*/
 !network/organizations/fabric-ca/*/fabric-ca-server-config.yaml
 **/msp/keystore/
+network/organizations/directors.json
 *.pem
 *.key
 !**/*.example.pem
@@ -60,3 +61,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 .idea/
+
+
+ui-references/

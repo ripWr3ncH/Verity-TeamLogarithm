@@ -3,10 +3,10 @@
 **Making loan classification tamper-evident in Bangladesh's banking system.**
 Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
 
-> **Build status: Phase 5 — the full back end runs.** BFT ordering, three chaincodes,
-> 15 identities, private data collections, the API returning real transaction
-> receipts, and the listener replaying the chain into the read model. 162/162 unit
-> tests green. The web portals are the remaining piece. The section
+> **Build status: portals built, Act 1 verified.** A reschedule at RS-3 is refused
+> with the circular cited, accepted only once three registered directors sign, and
+> the receipt names Bangladesh Bank among the endorsers. 162/162 unit tests green.
+> Remaining: benchmark, the other red-team scripts, demo assets. The section
 > [What is built, and what is not](#what-is-built-and-what-is-not) is kept
 > honest at every commit. See [`HANDOFF/`](HANDOFF/) for where work stopped.
 
@@ -41,8 +41,11 @@ cd network && ./bootstrap.sh        # once per machine: binaries + images (15-30
 cd .. && ./scripts/up.sh            # network, CAs, identities, chaincode, services, seed
 ```
 
-Then `curl -s localhost:4000/health` and `./network/network.sh status`.
-The web portals arrive in Phase 5.
+Then open <http://localhost:3000>. Register the Board once per network rebuild:
+
+```bash
+node scripts/register-directors.mjs
+```
 
 To stop and clean: `./scripts/down.sh`.
 
@@ -68,7 +71,8 @@ Kept current. We would rather state this than be asked.
 | Block listener + read model, rebuildable from block 0 | ✅ **running** — replays from block 0, 0 failures |
 | Mock core banking system with a read-only adapter grant | ✅ **running** — PostgreSQL refuses every adapter write |
 | Private data collections — the same query returns payload or hash by identity | ✅ **deployed and demonstrated** |
-| Bank officer · supervisor · depositor portals | ⏳ Phase 5 |
+| Bank officer · supervisor · depositor portals | ✅ **built** — Act 1 verified end to end |
+| Board registry — real k-of-n ed25519 threshold | ✅ **registered and verified** |
 | Red-team suite | 🔨 in progress — Act 3a done (`redteam/act3a.sh`) |
 | Benchmark, demo assets | ⏳ Phase 5 |
 

@@ -12,6 +12,10 @@
  *   · hand back the transaction receipt
  */
 
+import { createPrivateKey, sign } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import Fastify, { FastifyReply } from 'fastify';
 import cors from '@fastify/cors';
 
@@ -19,6 +23,28 @@ import { DEMO_USERS, ORGS } from './identities.js';
 import { ChannelName, closeAll, evaluate, extractRefusal, submit } from './gateway.js';
 
 const PORT = Number(process.env['PORT'] ?? 4000);
+
+/**
+ * Director keys, written by scripts/register-directors.mjs. Gitignored.
+ * Read on every ceremony so a re-registration takes effect without a restart.
+ */
+interface DirectorKey { keyId: string; publicKey: string; privateKey: string }
+
+function loadDirectorWallet(): Record<string, DirectorKey> {
+  const path = process.env['VERITY_DIRECTOR_WALLET'] ??
+    resolve(process.cwd(), '..', '..', 'network', 'organizations', 'directors.json');
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, DirectorKey>;
+  } catch {
+    throw Object.assign(
+      new Error(
+        'DIRECTORS_NOT_REGISTERED: no director wallet at ' + path +
+          '. Run: node scripts/register-directors.mjs',
+      ),
+      { statusCode: 503 },
+    );
+  }
+}
 
 const app = Fastify({
   logger: { level: process.env['LOG_LEVEL'] ?? 'info' },
@@ -195,6 +221,93 @@ app.post<{ Params: { id: string } }>('/supervise/:id', async (request, reply) =>
     return handle(reply, error);
   }
 });
+
+/**
+ * ACT 3a. The same query, from two identities.
+ *
+ * Evaluate-only, so a bank reading its own book leaves no trace. Returns the
+ * payload to a member of the originating institution's private data collection
+ * and the hash to everyone else — and the difference is Fabric's, not ours.
+ */
+app.get<{ Params: { id: string; seq: string } }>(
+  '/loans/:id/payload/:seq',
+  async (request, reply) => {
+    try {
+      return await evaluate(
+        actingUser(request),
+        'commitment',
+        'LifecycleContract',
+        'ReadEventPayload',
+        [request.params.id, request.params.seq],
+      );
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
+// ==========================================================================
+//  The Board — registration and the signing ceremony
+// ==========================================================================
+
+/** Register a director's public key. Org admin or MD/CEO only. */
+app.post<{ Body: { keyId: string; publicKey: string; name: string } }>(
+  '/board/register',
+  async (request, reply) => {
+    try {
+      const b = request.body;
+      const out = await submit(
+        actingUser(request),
+        'commitment',
+        'LifecycleContract',
+        'RegisterDirector',
+        [b.keyId, b.publicKey, b.name],
+      );
+      return reply.code(201).send(out);
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
+/**
+ * The k-of-n signing ceremony.
+ *
+ * ⚠ HONEST BOUNDARY, and say it out loud if asked: in this build the director
+ * keys sit in a wallet file and this endpoint signs on their behalf, so one
+ * person can demonstrate a threshold. In production each director holds their
+ * key in an HSM (§4.3) and signs on their own device.
+ *
+ * What is NOT simulated is the verification. Chaincode checks every signature
+ * against the registered director set, counts DISTINCT valid signers, and
+ * refuses below k — identical either way, and that is the part that matters.
+ */
+app.post<{ Body: { eventHash: string; signers: string[] } }>(
+  '/board/sign',
+  async (request, reply) => {
+    try {
+      const { eventHash, signers } = request.body;
+      if (!/^[0-9a-f]{64}$/.test(eventHash ?? '')) {
+        throw Object.assign(new Error('BAD_EVENT_HASH: expected a 64-character hex digest'), {
+          statusCode: 400,
+        });
+      }
+      const wallet = loadDirectorWallet();
+      const signatures = (signers ?? [])
+        .filter((name) => wallet[name])
+        .map((name) => {
+          const director = wallet[name]!;
+          return {
+            keyId: director.keyId,
+            signature: sign(null, Buffer.from(eventHash, 'utf8'), createPrivateKey(director.privateKey)).toString('base64'),
+          };
+        });
+      return { directorSignatures: signatures };
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
 
 app.get('/access-log', async (request, reply) => {
   try {
