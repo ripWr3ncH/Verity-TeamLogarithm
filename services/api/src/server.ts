@@ -21,6 +21,7 @@ import cors from '@fastify/cors';
 
 import { DEMO_USERS, ORGS } from './identities.js';
 import { ChannelName, closeAll, evaluate, extractRefusal, submit } from './gateway.js';
+import * as readmodel from './readmodel.js';
 
 const PORT = Number(process.env['PORT'] ?? 4000);
 
@@ -144,6 +145,49 @@ app.get('/identities', async () => ({
     'Each identity is a separate X.509 issued by its own organisation CA. Role and seniority ' +
     'are certificate attributes read by chaincode, not fields this API sets.',
 }));
+
+// ==========================================================================
+//  The read model — rich queries over a projection, never the source of truth
+//
+//  The queue and the histogram come from PostgreSQL, rebuilt from block 0 by
+//  the listener. Opening one exposure goes to the ledger instead, costs a
+//  block, and is logged. The list is a cache; the record is the chain.
+// ==========================================================================
+
+app.get<{ Querystring: { institution?: string; minScore?: string; capOnly?: string; limit?: string } }>(
+  '/queue',
+  async (request, reply) => {
+    try {
+      actingUser(request);
+      return await readmodel.queue({
+        institution: request.query.institution,
+        minScore: request.query.minScore ? Number(request.query.minScore) : undefined,
+        capOnly: request.query.capOnly === 'true',
+        limit: request.query.limit ? Number(request.query.limit) : 50,
+      });
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
+app.get('/base-rate', async (request, reply) => {
+  try {
+    actingUser(request);
+    return await readmodel.baseRate();
+  } catch (error) {
+    return handle(reply, error);
+  }
+});
+
+app.get('/portfolios', async (request, reply) => {
+  try {
+    actingUser(request);
+    return { institutions: await readmodel.portfolios(), checkpoints: await readmodel.checkpoints() };
+  } catch (error) {
+    return handle(reply, error);
+  }
+});
 
 // ==========================================================================
 //  Module I — lifecycle

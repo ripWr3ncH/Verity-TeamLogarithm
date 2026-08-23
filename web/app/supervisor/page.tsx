@@ -22,6 +22,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { RefusalPanel } from '@/components/Outcome';
+import { BaseRateChart, SupervisoryQueue } from '@/components/Queue';
 import { useIdentity } from '@/components/Shell';
 import {
   api,
@@ -176,6 +177,12 @@ export default function SupervisorPortal(): React.ReactNode {
       </div>
 
       {/* ---------- Act 2 ---------- */}
+      <h2>The book</h2>
+      <div className="grid-side">
+        <SupervisoryQueue identity={identity} eStar={eStar} onOpen={(id) => { setLoanId(id); void supervise(id); }} selected={loan?.commitmentId} />
+        <BaseRateChart identity={identity} />
+      </div>
+
       <h2>Open an exposure</h2>
       <div className="card">
         <div className="row">

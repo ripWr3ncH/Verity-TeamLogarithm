@@ -89,6 +89,47 @@ export interface Parameter {
   changedByTx: string;
 }
 
+export interface QueueRow {
+  commitmentId: string;
+  institutionMsp: string;
+  currentTier: string;
+  rsSequence: number;
+  outstandingBand: string;
+  ediScore: number;
+  capFlag: boolean;
+  eventCount: number;
+  lastBlock: string;
+}
+
+export interface Queue {
+  rows: QueueRow[];
+  total: number;
+  /** Travels with the payload so no view can render scores without it. */
+  disclaimer: string;
+}
+
+export interface BaseRate {
+  buckets: Array<{ label: string; count: number; share: number }>;
+  totalReschedulings: number;
+  withinThirtyDays: number;
+  suggestedEStar: number;
+  currentEStar: number;
+}
+
+export interface Portfolio {
+  institutionMsp: string;
+  loans: number;
+  rescheduled: number;
+  capFlagged: number;
+  meanScore: number;
+}
+
+export interface Checkpoint {
+  channel: string;
+  lastBlock: string;
+  eventsApplied: string;
+}
+
 export interface PayloadRead {
   authorised: boolean;
   callerMsp: string;
@@ -180,6 +221,23 @@ export const api = {
       identity,
       { method: 'POST', body: JSON.stringify({ eventHash, signers }) },
     ),
+
+  /**
+   * The supervisory queue, from the READ MODEL — fast, rich, and not
+   * authoritative. Opening a row goes to the ledger instead.
+   */
+  queue: (identity: string, opts: { capOnly?: boolean; limit?: number; institution?: string } = {}) => {
+    const q = new URLSearchParams();
+    if (opts.capOnly) q.set('capOnly', 'true');
+    if (opts.limit) q.set('limit', String(opts.limit));
+    if (opts.institution) q.set('institution', opts.institution);
+    return request<Queue>(`/queue?${q}`, identity);
+  },
+
+  baseRate: (identity: string) => request<BaseRate>('/base-rate', identity),
+
+  portfolios: (identity: string) =>
+    request<{ institutions: Portfolio[]; checkpoints: Checkpoint[] }>('/portfolios', identity),
 
   parameters: (identity: string) => request<Parameter[]>('/parameters', identity),
 
