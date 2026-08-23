@@ -314,7 +314,9 @@ Kept current. We would rather state this than be asked.
 | Red-team suite | ✅ **8/8 attacks refused** |
 | Measured performance | ✅ 20.4 tx/s · [bench/RESULTS.md](bench/RESULTS.md) |
 | **Browser walk-through by a human** | ⏳ **not yet done** |
-| **Demo video, poster panels, rehearsal** | ⏳ not started |
+| Demo runbook and video scripts | ✅ [DEMO.md](DEMO.md) · [VIDEO.md](VIDEO.md) |
+| State snapshot and restore | ✅ [scripts/snapshot.sh](scripts/snapshot.sh) |
+| **Recording the videos, poster panels, rehearsal** | ⏳ not started |
 | **Clean-clone run on a second machine, offline** | ⏳ not verified |
 
 **Out of scope for this prototype, and deliberately so:**

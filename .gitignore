@@ -34,6 +34,7 @@ network/system-genesis-block/
 *.tx
 *.tar.gz
 ledger-snapshots/
+.snapshots/
 pgdata/
 logs/
 *.log
