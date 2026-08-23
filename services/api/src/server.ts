@@ -190,6 +190,61 @@ app.get('/portfolios', async (request, reply) => {
   }
 });
 
+/**
+ * Wipe every projection and replay the chain from block 0.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  THIS IS THE ARCHITECTURE ANSWER, AND IT IS MEANT TO BE PRESSED ON STAGE.
+ *
+ *  "Is this really on a blockchain, or a database with hashes in it?"
+ *
+ *  Delete the database in front of them. The dashboard empties, the listener
+ *  replays every committed block, and 828 exposures come back with the same
+ *  scores. Nothing was lost, because nothing here was ever the source of
+ *  truth — the ledger is, and this is a cache derived from it.
+ * ══════════════════════════════════════════════════════════════════════════
+ *
+ * Proxied to the listener, which owns the replay. The API does not touch the
+ * projection itself.
+ */
+const LISTENER_CONTROL =
+  process.env['LISTENER_CONTROL_URL'] ?? 'http://127.0.0.1:4100';
+
+app.post('/admin/rebuild', async (request, reply) => {
+  try {
+    const who = actingUser(request);
+    const user = DEMO_USERS.find((u) => u.id === who);
+    if (user?.role !== 'supervisor') {
+      throw Object.assign(
+        new Error('ROLE_REQUIRED: rebuilding the read model is a supervisory action'),
+        { statusCode: 403 },
+      );
+    }
+    const r = await fetch(`${LISTENER_CONTROL}/rebuild`, { method: 'POST' });
+    return reply.code(r.status).send(await r.json());
+  } catch (error) {
+    if ((error as { cause?: unknown }).cause) {
+      return reply.code(503).send({
+        refused: false,
+        error:
+          'LISTENER_UNREACHABLE: the block listener is not running, so the read model cannot be ' +
+          'replayed. Start it with: npm --prefix services/listener start',
+      });
+    }
+    return handle(reply, error);
+  }
+});
+
+app.get('/admin/replay-status', async (request, reply) => {
+  try {
+    actingUser(request);
+    const r = await fetch(`${LISTENER_CONTROL}/status`);
+    return await r.json();
+  } catch {
+    return reply.code(503).send({ refused: false, error: 'LISTENER_UNREACHABLE' });
+  }
+});
+
 // ==========================================================================
 //  Legacy integration — the read-only adapter and CL-1 reconciliation
 // ==========================================================================

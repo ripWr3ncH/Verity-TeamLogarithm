@@ -22,6 +22,7 @@
 import { connect, Gateway, Network } from '@hyperledger/fabric-gateway';
 import * as grpc from '@grpc/grpc-js';
 import { createPrivateKey, randomUUID } from 'crypto';
+import { createServer, type Server } from 'node:http';
 import { signers } from '@hyperledger/fabric-gateway';
 import pg from 'pg';
 
@@ -172,7 +173,49 @@ export async function shutdown(): Promise<void> {
   await pool.end();
 }
 
+/**
+ * A very small control surface, so `rebuild()` can be triggered from the
+ * supervisor portal instead of by restarting this process.
+ *
+ * This is the architecture answer made pressable: wipe every projection and
+ * replay the chain from block 0 while a judge watches the dashboard empty and
+ * refill. Kept on its own port and deliberately tiny — the API proxies to it,
+ * and nothing here touches the ledger.
+ */
+function startControlServer(port: number): Server {
+  return createServer((req, res) => {
+    const json = (code: number, body: unknown): void => {
+      res.writeHead(code, { 'content-type': 'application/json' });
+      res.end(JSON.stringify(body));
+    };
+
+    if (req.method === 'GET' && req.url === '/status') {
+      pool
+        .query('SELECT channel, last_block, events_applied FROM readmodel.checkpoint ORDER BY channel')
+        .then((r) => json(200, { checkpoints: r.rows }))
+        .catch((e: Error) => json(500, { error: e.message }));
+      return;
+    }
+
+    if (req.method === 'POST' && req.url === '/rebuild') {
+      rebuild()
+        .then((r) => json(202, { ...r, note: 'replaying all three channels from block 0' }))
+        .catch((e: Error) => json(500, { error: e.message }));
+      return;
+    }
+
+    json(404, { error: 'not found' });
+  }).listen(port, () => {
+    // eslint-disable-next-line no-console
+    console.log(`[listener] control surface on :${port}`);
+  });
+}
+
 if (process.argv[1]?.endsWith('listener.js')) {
   for (const channel of CHANNELS) void follow(channel);
-  process.on('SIGINT', () => void shutdown().then(() => process.exit(0)));
+  const control = startControlServer(Number(process.env['LISTENER_CONTROL_PORT'] ?? 4100));
+  process.on('SIGINT', () => {
+    control.close();
+    void shutdown().then(() => process.exit(0));
+  });
 }
