@@ -298,7 +298,7 @@ Kept current. We would rather state this than be asked.
 
 | Component | Status |
 |---|---|
-| Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ running, 18 containers |
+| Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ running, 21 containers |
 | Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 38 tests |
 | Governance — Council parameters, quorum-gated change | ✅ end to end · verified live |
 | Private data collections | ✅ payload vs hash, by identity |
@@ -309,13 +309,13 @@ Kept current. We would rather state this than be asked.
 | Identities — 16 officers, CA-issued role attributes | ✅ enrolled |
 | CRL revocation | ✅ demonstrated end to end |
 | Mock CBS, read-only adapter, CL-1 reconciliation | ✅ omission check live |
-| Bank officer · supervisor · depositor portals | ✅ built and served |
+| Bank officer · supervisor · depositor portals | ✅ containerised, started by `up.sh` |
 | Rebuild from block 0 | ✅ exposed as a control |
 | Red-team suite | ✅ **8/8 attacks refused** |
 | Measured performance | ✅ 20.4 tx/s · [bench/RESULTS.md](bench/RESULTS.md) |
 | **Browser walk-through by a human** | ⏳ **not yet done** |
 | Demo runbook and video scripts | ✅ [DEMO.md](DEMO.md) · [VIDEO.md](VIDEO.md) |
-| State snapshot and restore | ✅ [scripts/snapshot.sh](scripts/snapshot.sh) |
+| State snapshot and restore | ✅ [scripts/snapshot.sh](scripts/snapshot.sh) · round trip verified |
 | **Recording the videos, poster panels, rehearsal** | ⏳ not started |
 | **Clean-clone run on a second machine, offline** | ⏳ not verified |
 
