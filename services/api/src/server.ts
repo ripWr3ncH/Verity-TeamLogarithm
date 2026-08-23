@@ -228,7 +228,7 @@ app.post('/admin/rebuild', async (request, reply) => {
         refused: false,
         error:
           'LISTENER_UNREACHABLE: the block listener is not running, so the read model cannot be ' +
-          'replayed. Start it with: npm --prefix services/listener start',
+          'replayed. Start it with: docker compose -f services/compose.yaml up -d listener',
       });
     }
     return handle(reply, error);

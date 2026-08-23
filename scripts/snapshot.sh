@@ -63,26 +63,29 @@ takeSnapshot() {
   docker compose -f "$COMPOSE_NET" stop >/dev/null 2>&1 || true
   ok "quiesced"
 
-  say "Archiving ledger volumes"
+  say "Archiving ledger volumes and Postgres"
   mkdir -p "${DEST}/volumes"
-  for v in "${VOLUMES[@]}"; do
+
+  # ONE container mounting every volume, not one container per volume.
+  #
+  # Not a micro-optimisation. On Docker Desktop with the WSL2 backend a
+  # short-lived `docker run --rm` occasionally finishes its work and then never
+  # exits: `docker top` shows no processes while `docker ps` still says Up, and
+  # the calling script blocks forever. Ten containers is ten chances to hit
+  # that; one is one, and it is also several times faster.
+  local mounts=() present=()
+  for v in "${VOLUMES[@]}" verity-pgdata; do
     real="$(volumeName "$v")"
     [[ -z "$real" ]] && { warn "no volume for ${v} — skipping"; continue; }
-    docker run --rm -v "${real}:/from:ro" -v "${DEST}/volumes:/to" alpine \
-      tar -czf "/to/${v}.tar.gz" -C /from . >/dev/null 2>&1 \
-      || die "could not archive ${v}"
-    step "$v"
+    mounts+=(-v "${real}:/vol/${v}:ro")
+    present+=("$v")
   done
+  [[ ${#present[@]} -eq 0 ]] && die "no Verity volumes — has ./scripts/up.sh ever run?"
 
-  say "Archiving Postgres"
-  pgvol="$(volumeName verity-pgdata)"
-  if [[ -n "$pgvol" ]]; then
-    docker run --rm -v "${pgvol}:/from:ro" -v "${DEST}/volumes:/to" alpine \
-      tar -czf "/to/verity-pgdata.tar.gz" -C /from . >/dev/null 2>&1
-    step "verity-pgdata"
-  else
-    warn "no Postgres volume found"
-  fi
+  docker run --rm "${mounts[@]}" -v "${DEST}/volumes:/to" alpine \
+    sh -c 'for d in /vol/*; do tar -czf "/to/$(basename "$d").tar.gz" -C "$d" . ; done' \
+    >/dev/null 2>&1 || die "could not archive the volumes"
+  for v in "${present[@]}"; do step "$v"; done
 
   say "Archiving identities and generated fixtures"
   # organizations/ holds every MSP, every enrolled officer, and directors.json.
@@ -108,44 +111,36 @@ takeSnapshot() {
 restoreSnapshot() {
   [[ -d "$DEST" ]] || die "no snapshot '${NAME}' — try: ./scripts/snapshot.sh list"
 
-  say "Restoring snapshot '${NAME}' from $(cat "${DEST}/taken-at" | head -1)"
+  say "Restoring snapshot '${NAME}' from $(head -1 "${DEST}/taken-at")"
 
   docker compose -f "$COMPOSE_SVC" stop >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE_CA" stop >/dev/null 2>&1 || true
   docker stop cc-commitment cc-exposure cc-claims >/dev/null 2>&1 || true
   docker compose -f "$COMPOSE_NET" stop >/dev/null 2>&1 || true
 
-  say "Restoring ledger volumes"
-  for v in "${VOLUMES[@]}"; do
+  say "Restoring ledger volumes and Postgres"
+  # One container again — see the note in takeSnapshot.
+  local mounts=() present=()
+  for v in "${VOLUMES[@]}" verity-pgdata; do
     [[ -f "${DEST}/volumes/${v}.tar.gz" ]] || continue
     real="$(volumeName "$v")"
     [[ -z "$real" ]] && { warn "volume ${v} missing — run ./scripts/up.sh once first"; continue; }
-    docker run --rm -v "${real}:/to" -v "${DEST}/volumes:/from:ro" alpine \
-      sh -c 'rm -rf /to/* /to/..?* 2>/dev/null; tar -xzf /from/'"${v}"'.tar.gz -C /to' >/dev/null 2>&1 \
-      || die "could not restore ${v}"
-    step "$v"
+    mounts+=(-v "${real}:/vol/${v}")
+    present+=("$v")
   done
+  [[ ${#present[@]} -eq 0 ]] && die "nothing to restore into — run ./scripts/up.sh once first"
 
-  pgvol="$(volumeName verity-pgdata)"
-  if [[ -n "$pgvol" && -f "${DEST}/volumes/verity-pgdata.tar.gz" ]]; then
-    docker run --rm -v "${pgvol}:/to" -v "${DEST}/volumes:/from:ro" alpine \
-      sh -c 'rm -rf /to/* /to/..?* 2>/dev/null; tar -xzf /from/verity-pgdata.tar.gz -C /to' >/dev/null 2>&1
-    step "verity-pgdata"
-  fi
+  docker run --rm "${mounts[@]}" -v "${DEST}/volumes:/from:ro" alpine sh -c '
+    for d in /vol/*; do
+      n=$(basename "$d")
+      rm -rf "$d"/* "$d"/..?* 2>/dev/null
+      tar -xzf "/from/${n}.tar.gz" -C "$d"
+    done' >/dev/null 2>&1 || die "could not restore the volumes"
+  for v in "${present[@]}"; do step "$v"; done
 
   say "Restoring identities and fixtures"
-  # Replace the CONTENTS, never the directory itself.
-  #
-  # The peers and orderers bind-mount paths under network/organizations. On
-  # Docker Desktop with the WSL2 backend, deleting and recreating that directory
-  # invalidates the daemon's bind-mount cache, and starting the containers then
-  # fails with
-  #
-  #   error while creating mount source path '/run/desktop/mnt/host/wsl/
-  #   docker-desktop-bind-mounts/...': file exists
-  #
-  # which names a path nobody has ever typed. Keeping the directory inode stable
-  # avoids it entirely.
+  # Replace the CONTENTS, never the directory itself — see the --force-recreate
+  # note below for what goes wrong when the directory inode changes.
   local stage
   stage="$(mktemp -d)"
   tar -xzf "${DEST}/organizations.tar.gz" -C "$stage" || die "could not unpack organizations"
@@ -160,21 +155,43 @@ restoreSnapshot() {
     rm -rf network/channel-artifacts; tar -xzf "${DEST}/channel-artifacts.tar.gz" -C network; step "channel-artifacts"; }
 
   say "Starting everything back up"
-  # `up -d` rather than `start`: the containers are recreated, so their bind
-  # mounts are resolved fresh against the restored directory. `start` reuses the
-  # daemon's cached mount source and fails after a restore.
-  docker compose -f "$COMPOSE_NET" up -d >/dev/null 2>&1 || die "could not start the network"
+  # --force-recreate, and it is not optional.
+  #
+  # The peers bind-mount paths under network/organizations. Docker Desktop's
+  # WSL2 backend shims each bind mount through a hashed directory under
+  # /run/desktop/mnt/host/wsl/docker-desktop-bind-mounts/, and a container that
+  # is merely STOPPED still owns its entry. Starting it again after the source
+  # directory has been rewritten fails with
+  #
+  #   error while creating mount source path '/run/desktop/mnt/host/wsl/
+  #   docker-desktop-bind-mounts/Ubuntu/08cd289e...': file exists
+  #
+  # naming a path nobody has ever typed. Recreating the container releases the
+  # stale entry first and everything resolves. A recreate does not touch named
+  # volumes, so the ledger survives it.
+  docker compose -f "$COMPOSE_NET" up -d --force-recreate >/dev/null 2>&1 \
+    || die "could not start the network"
   docker start cc-commitment cc-exposure cc-claims >/dev/null 2>&1 || true
-  docker compose -f "$COMPOSE_CA" up -d >/dev/null 2>&1 || true
-  docker compose -f "$COMPOSE_SVC" up -d postgres >/dev/null 2>&1 || true
-  sleep 14
+  docker compose -f "$COMPOSE_CA" up -d --force-recreate >/dev/null 2>&1 || true
+  # The WHOLE services stack, not just Postgres. The API, the listener and the
+  # portal are all containers; restoring Postgres alone leaves a dashboard with
+  # nothing behind it.
+  docker compose -f "$COMPOSE_SVC" up -d --force-recreate >/dev/null 2>&1 || true
+
+  step "waiting for the API"
+  for _ in $(seq 1 30); do
+    curl -fsS -m 2 http://localhost:4000/health >/dev/null 2>&1 && break
+    sleep 2
+  done
 
   printf "\n"
-  ok "restored"
-  step "the API and listener are separate processes — restart them yourself:"
-  step "  (cd services/api && node dist/server.js &)"
-  step "  (cd services/listener && node dist/listener.js &)"
-  step "then check:  ./network/network.sh status"
+  if curl -fsS -m 3 http://localhost:4000/health >/dev/null 2>&1; then
+    ok "restored — portal http://localhost:3000"
+  else
+    warn "restored, but the API did not answer within 60s"
+    step "check:  docker logs verity-api --tail 30"
+  fi
+  step "verify:  ./network/network.sh status"
 }
 
 # --------------------------------------------------------------------------

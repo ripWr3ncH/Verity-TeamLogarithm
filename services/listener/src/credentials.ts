@@ -95,6 +95,32 @@ export const DEMO_USERS: DemoUser[] = [
   { id: 'frc-analyst', org: 'frc', role: 'frc', seniority: 4, displayName: 'FRC analyst', portal: 'supervisor' },
 ];
 
+/**
+ * Where to dial the peer.
+ *
+ * ── WHY THIS IS NOT JUST A CONSTANT ──────────────────────────────────────
+ *
+ * The endpoints above say `localhost`, which is correct exactly half the
+ * time. compose publishes the peers on the SAME port inside and out
+ * (`9051:9051`, not a translated port), so only the hostname differs:
+ *
+ *   run from a shell        localhost:9051               the published port
+ *   run inside verity_net   peer0.banka.verity.bd:9051   Docker DNS
+ *
+ * A container that dials `localhost:9071` is dialling itself, and Fabric
+ * reports it as `14 UNAVAILABLE ... ECONNREFUSED 127.0.0.1:9071` — which
+ * reads like the peer is down when in fact it was never addressed.
+ *
+ * The alias is already the peer certificate's CN, so it is the right host
+ * for TLS as well as for routing.
+ */
+export function resolvePeerEndpoint(org: OrgProfile): string {
+  const port = org.peerEndpoint.split(':')[1] ?? '9051';
+  return process.env['VERITY_PEER_HOST'] === 'dns'
+    ? `${org.peerHostAlias}:${port}`
+    : `localhost:${port}`;
+}
+
 export interface Credentials {
   mspId: string;
   certificate: Buffer;
@@ -122,7 +148,7 @@ export function loadCredentials(userId: string): Credentials {
     tlsRootCert: readFileSync(
       join(CRYPTO_ROOT, org.domain, 'peers', `peer0.${org.domain}`, 'tls', 'ca.crt'),
     ),
-    peerEndpoint: org.peerEndpoint,
+    peerEndpoint: resolvePeerEndpoint(org),
     peerHostAlias: org.peerHostAlias,
   };
 }

@@ -23,12 +23,9 @@ docker compose -f network/compose/compose-ca.yaml up -d
 cd network && ./scripts/enroll-users.sh && cd ..
 for cc in commitment exposure claims; do ./scripts/deploy-cc.sh "$cc"; done
 CC_SEQUENCE=2 ./scripts/deploy-cc.sh commitment      # private data collections
-docker compose -f services/compose.yaml up -d postgres
 
-# 2. Services (native is faster to restart than containers)
-npm --prefix services/api run build      && (cd services/api      && node dist/server.js &)
-npm --prefix services/listener run build && (cd services/listener && node dist/listener.js &)
-npm --prefix web run build               && (cd web && npx next start -p 3000 &)
+# 2. Services — Postgres, API, listener and portal, all containers
+docker compose -f services/compose.yaml up -d --build
 
 # 3. Populate. Order matters.
 node scripts/register-directors.mjs

@@ -64,6 +64,11 @@ services:
       PORT: 4000
       LOG_LEVEL: info
       DATABASE_URL: postgres://verity:verity@postgres:5432/verity   # in-network, so 5432 is correct here
+      # Dial peers by their compose DNS name rather than localhost. The port is
+      # the same either way (compose publishes 9051:9051); only the host differs,
+      # and inside a container `localhost:9071` is the container itself.
+      VERITY_PEER_HOST: dns
+      LISTENER_CONTROL_URL: http://verity-listener:4100
       # Identities are read from the network's crypto material. One X.509 per
       # officer — never a shared service account (services/api/src/identities.ts).
       VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
@@ -86,10 +91,27 @@ services:
       DATABASE_URL: postgres://verity:verity@postgres:5432/verity   # in-network, so 5432 is correct here
       VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
       VERITY_LISTENER_IDENTITY: supervisor-2
+      VERITY_PEER_HOST: dns
     volumes:
       - ../network/organizations:/verity/network/organizations:ro
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
+    # The control surface the API proxies /admin/rebuild to. Not published to
+    # the host: wiping the read model is an in-network operation.
+    expose: ["4100"]
+    networks: [verity]
+
+  # The portal. Deliberately the only service with no identity of its own — every
+  # call it makes runs in the browser, as a NAMED officer, against localhost:4000.
+  web:
+    build:
+      context: ..
+      dockerfile: web/Dockerfile
+    container_name: verity-web
+    labels:
+      verity.role: portal
+    ports: ["3000:3000"]
+    depends_on: [api]
     networks: [verity]

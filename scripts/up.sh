@@ -62,11 +62,26 @@ for cc in commitment exposure claims; do
 done
 
 # ---------------------------------------------------------------------------
-phase "6/6  Services and seed data"
+phase "6/6  Services, portal and seed data"
+# Postgres, the API, the block listener and the Next.js portal. All four are
+# containers on purpose: a portal that only exists while somebody remembers to
+# run `npm run dev` in a second terminal is a portal that will be missing when a
+# judge walks up to the table.
 docker compose -f services/compose.yaml up -d --build
 step "waiting for Postgres"
 for _ in $(seq 1 30); do
   docker exec verity-postgres pg_isready -U verity -d verity >/dev/null 2>&1 && break
+  sleep 2
+done
+step "waiting for the API"
+for _ in $(seq 1 30); do
+  curl -fsS -m 2 http://localhost:4000/health >/dev/null 2>&1 && break
+  sleep 2
+done
+curl -fsS -m 3 http://localhost:4000/health >/dev/null 2>&1   || die "the API never answered on :4000 — check: docker logs verity-api --tail 40"
+step "waiting for the portal"
+for _ in $(seq 1 30); do
+  curl -fsS -m 2 -o /dev/null http://localhost:3000/ >/dev/null 2>&1 && break
   sleep 2
 done
 

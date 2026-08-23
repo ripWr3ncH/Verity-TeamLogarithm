@@ -129,11 +129,16 @@ are right there:
 ```bash
 source network/scripts/wsl-env.sh
 
-docker compose -f services/compose.yaml up -d postgres    # 5433 on the host
-
-cd services/api      && npm run build && node dist/server.js     # :4000
-cd services/listener && npm run build && node dist/listener.js
+# Postgres (5433 on the host), API (:4000), listener, portal (:3000)
+docker compose -f services/compose.yaml up -d --build
 ```
+
+> **If you run the API or listener from a shell instead**, leave `VERITY_PEER_HOST`
+> unset — it defaults to `localhost`, which is right for a host process. The
+> compose file sets `VERITY_PEER_HOST=dns` because inside a container
+> `localhost:9071` is the container itself, and Fabric reports that as
+> `14 UNAVAILABLE ... ECONNREFUSED 127.0.0.1:9071`, which reads like a dead peer
+> rather than a wrong address. See `services/*/src/{credentials,identities}.ts`.
 
 Quick checks:
 
