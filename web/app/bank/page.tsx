@@ -260,7 +260,7 @@ export default function BankPortal(): React.ReactNode {
                 {boardRequired ? (
                   <>
                     <p style={{ fontSize: '.87rem', margin: '0 0 .5rem' }}>
-                      <span className="pill watch">BOARD REQUIRED</span>{' '}
+                      <span className="pill amber">BOARD REQUIRED</span>{' '}
                       {eventType === 'RESCHEDULE'
                         ? `RS-${nextRs} is a third or fourth rescheduling — BRPD 16/2022 reserves it to the Board.`
                         : 'A write-off is reserved to the Board.'}{' '}
@@ -268,20 +268,9 @@ export default function BankPortal(): React.ReactNode {
                     </p>
                     <div className="row">
                       {DIRECTORS.map((d) => (
-                        <label
-                          key={d}
-                          style={{
-                            display: 'flex',
-                            gap: '.35rem',
-                            alignItems: 'center',
-                            margin: 0,
-                            fontSize: '.85rem',
-                            color: 'var(--ink)',
-                          }}
-                        >
+                        <label key={d} className="check">
                           <input
                             type="checkbox"
-                            style={{ width: 'auto' }}
                             checked={signers.includes(d)}
                             onChange={(e) =>
                               setSigners((prev) =>

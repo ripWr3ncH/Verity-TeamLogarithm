@@ -53,6 +53,34 @@ const app = Fastify({
 await app.register(cors, { origin: true });
 
 /**
+ * Accept an EMPTY body on application/json.
+ *
+ * Several routes are POSTs with nothing to send — approve a proposal, activate
+ * it, supervise an exposure. Any sane client still sets
+ * Content-Type: application/json, and Fastify's default parser then rejects
+ * the request with
+ *
+ *     Body cannot be empty when content-type is set to 'application/json'
+ *
+ * which is a 400 that looks nothing like the governance refusal the caller was
+ * expecting. The red-team suite caught this; the portal's Approve and Activate
+ * buttons would have hit it in front of judges.
+ */
+app.addContentTypeParser(
+  'application/json',
+  { parseAs: 'string' },
+  (_request, body: string | Buffer, done) => {
+    const text = typeof body === 'string' ? body : body.toString('utf8');
+    if (text.trim().length === 0) return done(null, {});
+    try {
+      done(null, JSON.parse(text));
+    } catch (error) {
+      done(error as Error, undefined);
+    }
+  },
+);
+
+/**
  * Every route runs as a NAMED identity supplied by the caller. There is no
  * default and no fallback: omitting it is an error, not an invitation to use a
  * service account.

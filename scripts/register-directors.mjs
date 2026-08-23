@@ -32,9 +32,18 @@ import { dirname, resolve } from 'node:path';
 const API = process.env.VERITY_API ?? 'http://127.0.0.1:4000';
 const WALLET = resolve('network/organizations/directors.json');
 
-/** An org admin or MD/CEO registers directors — see LifecycleContract. */
-const REGISTRAR = process.env.VERITY_REGISTRAR ?? 'md-banka';
-const DIRECTORS = ['director-1', 'director-2', 'director-3'];
+/**
+ * An org admin or MD/CEO registers directors — see LifecycleContract.
+ *
+ * The registry is PER INSTITUTION: chaincode validates a threshold against the
+ * director set of the bank that holds the exposure. BankB needs its own Board,
+ * or every BankB event at RS-3 is refused with DIRECTOR_NOT_REGISTERED —
+ * correctly, and confusingly if you forgot this step.
+ */
+const BOARDS = [
+  { registrar: 'md-banka', prefix: 'banka', directors: ['director-1', 'director-2', 'director-3'] },
+  { registrar: 'md-bankb', prefix: 'bankb', directors: ['bankb-director-1', 'bankb-director-2', 'bankb-director-3'] },
+];
 
 const sha256Hex = (buf) => createHash('sha256').update(buf).digest('hex');
 
@@ -49,33 +58,37 @@ async function call(path, identity, method, body) {
 }
 
 const wallet = {};
-process.stdout.write(`\n  registrar: ${REGISTRAR}\n\n`);
 
-for (const name of DIRECTORS) {
-  const { publicKey, privateKey } = generateKeyPairSync('ed25519');
-  const spki = publicKey.export({ format: 'der', type: 'spki' });
-  const publicKeyB64 = spki.toString('base64');
+for (const board of BOARDS) {
+  process.stdout.write(`\n  ${board.prefix} — registrar ${board.registrar}\n`);
 
-  // keyId is SHA-256 of the public key, exactly as domain/hash.ts derives it.
-  const keyId = sha256Hex(spki);
+  for (const name of board.directors) {
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const spki = publicKey.export({ format: 'der', type: 'spki' });
+    const publicKeyB64 = spki.toString('base64');
 
-  const result = await call('/board/register', REGISTRAR, 'POST', {
-    keyId,
-    publicKey: publicKeyB64,
-    name,
-  });
+    // keyId is SHA-256 of the public key, exactly as domain/hash.ts derives it.
+    const keyId = sha256Hex(spki);
 
-  if (result.status >= 400) {
-    process.stderr.write(`  FAILED ${name}: ${result.body?.message ?? result.body?.error}\n`);
-    process.exit(1);
+    const result = await call('/board/register', board.registrar, 'POST', {
+      keyId,
+      publicKey: publicKeyB64,
+      name,
+    });
+
+    if (result.status >= 400) {
+      process.stderr.write(`  FAILED ${name}: ${result.body?.message ?? result.body?.error}\n`);
+      process.exit(1);
+    }
+
+    wallet[name] = {
+      keyId,
+      publicKey: publicKeyB64,
+      privateKey: privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
+      institution: board.prefix,
+    };
+    process.stdout.write(`    ${name}  keyId ${keyId.slice(0, 16)}…\n`);
   }
-
-  wallet[name] = {
-    keyId,
-    publicKey: publicKeyB64,
-    privateKey: privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
-  };
-  process.stdout.write(`  registered ${name}  keyId ${keyId.slice(0, 16)}…\n`);
 }
 
 mkdirSync(dirname(WALLET), { recursive: true });

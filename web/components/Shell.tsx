@@ -96,8 +96,10 @@ export function Shell({ children }: { children: ReactNode }): ReactNode {
     >
       <div className="shell">
         <header className="topbar">
-          <span className="brand">Verity</span>
-          {portal && <span className="portal">{portal.label}</span>}
+          <Link href="/" className="brand" style={{ textDecoration: 'none' }}>
+            Verity
+            <span className="tag">{portal ? portal.label : 'prototype'}</span>
+          </Link>
           <nav>
             {PORTALS.map((p) => (
               <Link key={p.href} href={p.href} data-active={pathname.startsWith(p.href)}>
@@ -113,7 +115,7 @@ export function Shell({ children }: { children: ReactNode }): ReactNode {
         </div>
 
         {portal && (
-          <div style={{ padding: '.6rem 1.25rem', borderBottom: '1px solid var(--rule)', background: 'var(--surface)' }}>
+          <div className="identity-bar">
             <div className="identity">
               <label htmlFor="identity" style={{ margin: 0 }}>
                 Acting as

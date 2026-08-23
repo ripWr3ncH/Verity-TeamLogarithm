@@ -162,8 +162,8 @@ export default function SupervisorPortal(): React.ReactNode {
         <div className="row">
           {params.length === 0 && <span className="empty">Not loaded.</span>}
           {params.map((p) => (
-            <span key={p.name} className="cert" style={{ fontFamily: 'var(--mono)', fontSize: '.76rem' }}>
-              {p.name} = <b style={{ color: 'var(--accent)' }}>{p.value}</b>
+            <span key={p.name} className="cert">
+              {p.name} = <b>{p.value}</b>
               {p.proposalId !== 'GENESIS' && (
                 <span style={{ color: 'var(--ink-3)' }}> · {p.proposalId}</span>
               )}
@@ -199,12 +199,40 @@ export default function SupervisorPortal(): React.ReactNode {
       {loan && (
         <>
           <h2>
-            {loan.commitmentId} · {loan.institutionMsp} ·{' '}
-            <span className={score > eStar ? 'pill watch' : 'pill quiet'}>
-              E = {score.toFixed(3)} {score > eStar ? `> E* ${eStar}` : `≤ E* ${eStar}`}
-            </span>
-            {loan.rsSequence >= 3 && <> <span className="pill refuse">RS CAP</span></>}
+            {loan.commitmentId} · {loan.institutionMsp}
           </h2>
+
+          {/* Lead with the numbers. A supervisor scanning a queue needs the
+              score, the count and the cap flag before any table. */}
+          <div className="grid-3" style={{ marginBottom: '1.1rem' }}>
+            <div className="card">
+              <div className={score > eStar ? 'stat alert' : 'stat good'}>
+                <span className="value">{score.toFixed(3)}</span>
+                <span className="label">
+                  E{score > eStar ? ` — above E* ${eStar}` : ` — at or below E* ${eStar}`}
+                </span>
+              </div>
+            </div>
+            <div className="card">
+              <div className="stat">
+                <span className="value">{points.length}</span>
+                <span className="label">reschedulings on record</span>
+              </div>
+            </div>
+            <div className="card">
+              <div className={loan.rsSequence >= 3 ? 'stat alert' : 'stat'}>
+                <span className="value">RS-{loan.rsSequence}</span>
+                <span className="label">
+                  {loan.rsSequence >= 3 ? 'at or past the statutory cap' : 'within the three-occasion cap'}
+                </span>
+              </div>
+              {loan.rsSequence >= 3 && (
+                <p className="hint">
+                  Flagged independently of the index — §3.7.1 caps rescheduling at three occasions.
+                </p>
+              )}
+            </div>
+          </div>
 
           <div className="grid-2">
             <div className="card">
@@ -241,7 +269,7 @@ export default function SupervisorPortal(): React.ReactNode {
               </p>
             </div>
 
-            <div className="card" style={{ borderLeft: '3px solid var(--accent)' }}>
+            <div className="card accent">
               <h3>What the ledger recorded</h3>
               <div className="scroller">
                 <table>
@@ -299,7 +327,7 @@ export default function SupervisorPortal(): React.ReactNode {
                       <td>
                         <span className="pill quiet">{e.authorityEvidence?.kind ?? 'MECHANICAL'}</span>
                         {(e.authorityEvidence?.directorSignatures?.length ?? 0) > 0 && (
-                          <span className="pill commit" style={{ marginLeft: '.25rem' }}>
+                          <span className="pill mint" style={{ marginLeft: '.25rem' }}>
                             {e.authorityEvidence!.directorSignatures!.length} directors
                           </span>
                         )}
@@ -337,7 +365,7 @@ export default function SupervisorPortal(): React.ReactNode {
             <button onClick={() => void runGovernance('propose')} disabled={busy || !identity}>
               Propose
             </button>
-            <button className="quiet" onClick={() => void runGovernance('approve')} disabled={busy || !proposalId}>
+            <button className="mint" onClick={() => void runGovernance('approve')} disabled={busy || !proposalId}>
               Approve as {current?.mspId}
             </button>
             <button className="ghost" onClick={() => void runGovernance('activate')} disabled={busy || !proposalId}>

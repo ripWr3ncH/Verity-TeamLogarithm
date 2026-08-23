@@ -140,7 +140,7 @@ export default function DepositorPortal(): React.ReactNode {
     <div style={{ maxWidth: '30rem', margin: '0 auto' }}>
       <div className="row" style={{ justifyContent: 'space-between' }}>
         <h1 style={{ marginBottom: 0 }}>{t.title}</h1>
-        <button className="quiet" onClick={() => setLang(lang === 'en' ? 'bn' : 'en')}>
+        <button className="ghost small" onClick={() => setLang(lang === 'en' ? 'bn' : 'en')}>
           {lang === 'en' ? BN : 'English'}
         </button>
       </div>
