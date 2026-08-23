@@ -163,7 +163,10 @@ if (run(1)) {
 
 // ── 2 ──────────────────────────────────────────────────────────────────────
 if (run(2)) {
-  // officer-kamal is ALSO seniority 2 — the same rank as the sanctioning officer.
+  // officer-farhana is ALSO seniority 2 — the same rank as the sanctioning
+  // officer who originated. Deliberately NOT officer-kamal: he is the standing
+  // subject of the revocation demo, and once revoked he fails this for the
+  // wrong reason.
   const fresh = `BD-RT2-${Math.floor(Math.random() * 99999)}`;
   await call('/loans', 'officer-rahim', 'POST', {
     commitmentId: fresh, initialTier: 'STANDARD', outstandingBand: 'Tk 10-50 crore',
@@ -172,7 +175,7 @@ if (run(2)) {
   const l2 = await wait(fresh);
   const { body } = await eventBody(l2);
   want(2, 'Approval by an officer of EQUAL seniority', 'AUTHORITY_INSUFFICIENT',
-    await call('/events', 'officer-kamal', 'POST', body));
+    await call('/events', 'officer-farhana', 'POST', body));
 }
 
 // ── 3 ──────────────────────────────────────────────────────────────────────
@@ -239,13 +242,33 @@ if (run(7)) {
 
 // ── 8 ──────────────────────────────────────────────────────────────────────
 if (run(8)) {
-  const r = await call(`/loans/${LOAN}`, 'no-such-officer');
-  record(8, 'Unknown signing identity',
-    'rejected', r.status >= 400 ? 'rejected' : 'ACCEPTED',
-    (r.body?.error ?? '').slice(0, 120));
-  console.log(`  ${C.dim}  NOTE: full CRL revocation (fabric-ca-client revoke + gencrl) is not`);
-  console.log(`        yet wired. This checks an unknown identity, which is weaker.`);
-  console.log(`        Do not present it as the revocation demo until that is done.${C.off}\n`);
+  // Requires `bash redteam/revoke.sh` to have run against this network:
+  // it revokes officer-kamal at the CA and writes the CRL into BankAMSP's MSP
+  // through a channel config update. Without that this attack cannot fire, and
+  // saying so is better than quietly testing something weaker.
+  const probe = await call('/loans', 'officer-kamal', 'POST', {
+    commitmentId: `BD-RT8-${Math.floor(Math.random() * 99999)}`,
+    initialTier: 'STANDARD',
+    outstandingBand: 'Tk 1-10 crore',
+    groupToken: 'G-0447',
+    payloadHash: Z,
+    originationDate: '2027-02-01',
+  });
+  const code = probe.body?.refused ? probe.body.code : probe.status < 400 ? 'ACCEPTED' : 'ERROR';
+  record(8, 'Revoked certificate signs a new event', 'IDENTITY_NOT_VALID', code,
+    probe.body?.message?.slice(0, 150));
+
+  if (code === 'ACCEPTED') {
+    console.log(`  ${C.dim}  officer-kamal has not been revoked on this network.`);
+    console.log(`        Run: bash redteam/revoke.sh${C.off}\n`);
+  } else if (code === 'IDENTITY_NOT_VALID') {
+    // The other half of §4.4, and the half people forget to check.
+    const earlier = await call(`/loans/${LOAN}`, 'supervisor-1');
+    console.log(
+      `  ${C.dim}  and their earlier events remain valid: ${LOAN} is still ` +
+        `${earlier.status === 200 ? 'readable on the ledger' : 'UNREADABLE — investigate'}${C.off}\n`,
+    );
+  }
 }
 
 // --------------------------------------------------------------------------

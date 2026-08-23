@@ -200,15 +200,66 @@ export function extractRefusal(error: unknown): { code: string; message: string 
   //   BankAMSP; no participant may write another institution's record
   // which is the entire point of the refusal catalogue.
   const details = (error as { details?: Array<{ message?: string }> }).details;
-  if (Array.isArray(details)) {
-    for (const detail of details) {
-      const refusal = matchRefusal(detail?.message ?? '');
-      if (refusal) return refusal;
-    }
+  const messages = Array.isArray(details)
+    ? details.map((d) => d?.message ?? '').filter(Boolean)
+    : [];
+  messages.push(error.message);
+
+  // Identity failures happen at the MSP layer, BEFORE chaincode runs, so there
+  // is no contract message to find — just "access denied". Without this the
+  // revocation demo puts "ABORTED" on screen, which tells a judge nothing.
+  for (const message of messages) {
+    const identity = matchIdentityFailure(message);
+    if (identity) return identity;
   }
 
-  // Evaluate (query) errors put the contract message on the error itself.
-  return matchRefusal(error.message);
+  for (const message of messages) {
+    const refusal = matchRefusal(message);
+    if (refusal) return refusal;
+  }
+  return null;
+}
+
+/**
+ * MSP-level rejections, which are not chaincode refusals but must read like
+ * decisions rather than accidents.
+ *
+ * The two are worth telling apart. "access denied … creator org [X]" means the
+ * certificate no longer validates in that MSP — a revocation, which is §4.4
+ * working. "creator is malformed" means it never chained to the MSP root at
+ * all, which is a misconfiguration and cost real time to diagnose once already.
+ */
+function matchIdentityFailure(text: string): { code: string; message: string } | null {
+  if (/creator is malformed|creator org unknown/i.test(text)) {
+    return {
+      code: 'IDENTITY_NOT_RECOGNISED',
+      message:
+        'IDENTITY_NOT_RECOGNISED: this certificate does not chain to the organisation MSP the ' +
+        'channel was created with. Usually means the network was regenerated without re-running ' +
+        'enroll-users.sh, or the CA did not adopt the cryptogen root.',
+    };
+  }
+  const denied = text.match(/access denied: channel \[([^\]]+)\] creator org \[([^\]]+)\]/i);
+  if (denied) {
+    // The peer says only "this identity is not currently valid here". It does
+    // NOT say why, and the two causes look identical from outside:
+    //   · the certificate is on the CRL      — §4.4 working
+    //   · the client signed with a key that does not match the certificate
+    //     — a setup fault, which happened here once and wasted real time
+    //
+    // An earlier version of this function reported the first unconditionally.
+    // Telling a judge "revoked" when it is a stale key in the keystore is
+    // exactly the kind of overclaim §7.4 exists to avoid, so name both.
+    return {
+      code: 'IDENTITY_NOT_VALID',
+      message:
+        `IDENTITY_NOT_VALID: the signing credential is not currently valid in ${denied[2]} on ` +
+        `channel '${denied[1]}'. Either the certificate has been revoked — in which case events ` +
+        'this officer signed earlier remain valid (§4.4) — or the client signed with a key that ' +
+        'does not match it. Check the CRL first, then the keystore.',
+    };
+  }
+  return null;
 }
 
 /**

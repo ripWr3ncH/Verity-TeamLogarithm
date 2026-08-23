@@ -73,7 +73,7 @@ Kept current. We would rather state this than be asked.
 | Private data collections — the same query returns payload or hash by identity | ✅ **deployed and demonstrated** |
 | Bank officer · supervisor · depositor portals | ✅ **built** — Act 1 verified end to end |
 | Board registry — real k-of-n ed25519 threshold | ✅ **registered and verified** |
-| Red-team suite | ✅ **8/8 attacks refused** (`node redteam/run.mjs`) |
+| Red-team suite | ✅ **8/8 attacks refused**, including live CRL revocation |
 | Byzantine fault tolerance | ✅ **demonstrated** — commits with an orderer down (`redteam/orderer-fault.sh`) |
 | Synthetic portfolio on the ledger | ✅ **813 loans, 463 events** |
 | Measured performance | ✅ **20.4 tx/s sustained** — see [bench/RESULTS.md](bench/RESULTS.md) |

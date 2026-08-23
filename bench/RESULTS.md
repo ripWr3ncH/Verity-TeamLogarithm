@@ -117,7 +117,7 @@ extrapolated from 264 blocks — the honest thing to say is that it is not yet k
 | 5 | Unknown event type | `INVALID_EVENT_TYPE` |
 | 6 | Stale prior-state hash | `STATE_DIVERGENCE` |
 | 7 | One bank raising its own alert threshold | `GOVERNANCE_QUORUM_REQUIRED` — 1 of 3 |
-| 8 | Unknown signing identity | rejected |
+| 8 | **Revoked certificate signs a new event** | `IDENTITY_NOT_VALID` — and the officer's earlier events remain readable |
 
 An intermediate result worth showing: at RS-3 with **two** valid director signatures the refusal reads
 *supplied 2 of 3*. Those were real ed25519 signatures, verified against the registered set and counted as
@@ -133,8 +133,9 @@ Stated so nobody fills the gap with an assumption.
 - **p95 / p99 latency.** Only single-transaction latencies were timed. A proper percentile distribution needs
   Caliper or an equivalent harness.
 - **Distributed topology.** Everything shares one host. Cross-machine ordering has not been tested.
-- **CRL revocation.** Red-team #8 checks an unknown identity, which is weaker than the revocation demo
-  §4.4 describes. `fabric-ca-client revoke` + `gencrl` is not yet wired.
+- **Revocation latency.** `redteam/revoke.sh` demonstrates §4.4 end to end — revoke at the CA, generate the
+  CRL, write it into the org MSP by channel config update, and the officer can no longer write while their
+  earlier events stay valid. How long peers take to apply that config was not timed.
 
 ---
 
