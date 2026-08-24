@@ -45,6 +45,7 @@ import {
   listByPartialKey,
   loanKey,
   putJson,
+  SUPERVISOR_MSP,
   txTimestamp,
 } from '../ledger';
 import { readParameter } from './governance';
@@ -463,7 +464,25 @@ export class LifecycleContract extends Contract {
 
   /**
    * §4.4: "directors additionally hold threshold-signing shares."
-   * Only an org admin may register a director, and only for their own MSP.
+   *
+   * A bank admin registers a director for their OWN MSP, and the record lands
+   * PENDING. It is not usable for a Board threshold until Bangladesh Bank
+   * confirms it with ConfirmDirector.
+   *
+   * ══════════════════════════════════════════════════════════════════════════
+   *  WHY REGISTRATION ALONE IS NOT ENOUGH
+   *
+   *  A k-of-n threshold proves k people signed. It proves nothing about who
+   *  those people are. Without supervisory confirmation, a bank admin registers
+   *  three keys it controls, signs its own RS-3 three times over, and the
+   *  chaincode waves it through having checked everything except the only thing
+   *  that mattered.
+   *
+   *  This is not a new rule. A bank director's appointment already requires
+   *  Bangladesh Bank's prior approval (Bank Company Act 1991, s.15). Verity
+   *  makes an existing approval a precondition the code checks, which is the
+   *  same move it makes for BRPD 16/2022 in AppendEvent.
+   * ══════════════════════════════════════════════════════════════════════════
    */
   @Transaction()
   async RegisterDirector(ctx: Context, keyId: string, publicKey: string, name: string): Promise<void> {
@@ -477,24 +496,63 @@ export class LifecycleContract extends Contract {
       publicKey,
       name,
       registeredAt: txTimestamp(ctx),
+      registeredBy: who.id,
+      status: 'PENDING',
     };
     await putJson(ctx, ctx.stub.createCompositeKey(KEY.DIRECTOR, [who.mspId, keyId]), director);
   }
 
   /**
-   * Revocation is forward-only. §4.4: "a departed officer cannot sign a later
-   * event while their earlier signatures remain valid."
+   * The supervisor confirms a director the bank proposed, and only then can
+   * that director's signature count toward a Board threshold.
+   *
+   * Note the two arguments: the supervisor names the MSP as well as the key, so
+   * a confirmation is always explicitly for one bank's board. There is no path
+   * by which a bank confirms its own — the role check is against the CALLER'S
+   * CERTIFICATE, and no bank identity carries role=supervisor.
    */
   @Transaction()
-  async RevokeDirector(ctx: Context, keyId: string): Promise<void> {
+  async ConfirmDirector(ctx: Context, mspId: string, keyId: string): Promise<void> {
     const who = caller(ctx);
-    if (who.role !== 'admin' && who.role !== 'mdceo') {
-      throw refusals.roleRequired('admin', who.role);
+    if (who.role !== 'supervisor') throw refusals.roleRequired('supervisor', who.role);
+    if (who.mspId !== SUPERVISOR_MSP) {
+      throw refusals.unauthorisedInstitution(who.mspId, SUPERVISOR_MSP);
     }
-    const key = ctx.stub.createCompositeKey(KEY.DIRECTOR, [who.mspId, keyId]);
+    const key = ctx.stub.createCompositeKey(KEY.DIRECTOR, [mspId, keyId]);
     const director = await getJson<RegisteredDirector>(ctx, key);
-    if (!director) throw refusals.directorNotRegistered(keyId, who.mspId, blockHint(ctx));
-    await putJson(ctx, key, { ...director, revokedAt: txTimestamp(ctx) });
+    if (!director) throw refusals.directorNotRegistered(keyId, mspId, blockHint(ctx));
+    await putJson(ctx, key, {
+      ...director,
+      status: 'CONFIRMED',
+      confirmedBy: who.id,
+      confirmedAt: txTimestamp(ctx),
+    });
+  }
+
+  /**
+   * Revocation is forward-only. §4.4: "a departed officer cannot sign a later
+   * event while their earlier signatures remain valid."
+   *
+   * Either the bank's own admin or the supervisor may revoke. The supervisor
+   * needs this for the same reason it needs to confirm: an approval it can
+   * grant and never withdraw is not an approval.
+   */
+  @Transaction()
+  async RevokeDirector(ctx: Context, mspId: string, keyId: string): Promise<void> {
+    const who = caller(ctx);
+    const isSupervisor = who.role === 'supervisor' && who.mspId === SUPERVISOR_MSP;
+    const isOwnAdmin =
+      (who.role === 'admin' || who.role === 'mdceo') && who.mspId === mspId;
+    if (!isSupervisor && !isOwnAdmin) throw refusals.roleRequired('admin', who.role);
+
+    const key = ctx.stub.createCompositeKey(KEY.DIRECTOR, [mspId, keyId]);
+    const director = await getJson<RegisteredDirector>(ctx, key);
+    if (!director) throw refusals.directorNotRegistered(keyId, mspId, blockHint(ctx));
+    await putJson(ctx, key, {
+      ...director,
+      revokedAt: txTimestamp(ctx),
+      revokedBy: who.id,
+    });
   }
 
   @Transaction(false)

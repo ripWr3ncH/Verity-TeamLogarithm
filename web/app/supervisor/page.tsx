@@ -21,6 +21,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { BoardConfirmation } from '@/components/Board';
 import { RefusalPanel } from '@/components/Outcome';
 import { BaseRateChart, SupervisoryQueue } from '@/components/Queue';
 import { ReconciliationPanel } from '@/components/Reconciliation';
@@ -401,6 +402,8 @@ export default function SupervisorPortal(): React.ReactNode {
         </div>
 
         <div>
+        <BoardConfirmation identity={identity} />
+
         <RebuildPanel identity={identity} />
         <div className="card" style={{ marginTop: '1rem' }}>
           <h3>Supervisory access log (§4.7)</h3>

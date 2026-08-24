@@ -44,7 +44,7 @@ node scripts/run-liability-commitment.mjs
 - [ ] `curl -s localhost:4000/health` returns `{"status":"ok","synthetic":true}`
 - [ ] `curl -s localhost:4000/queue?limit=1 -H 'X-Verity-Identity: supervisor-1'` shows a total near 830
 - [ ] `docker ps --filter label=service=hyperledger-fabric -q | wc -l` → 17
-- [ ] `node redteam/run.mjs` → 8/8
+- [ ] `node redteam/run.mjs` → 9/9
 - [ ] Four browser tabs open: `/`, `/bank`, `/supervisor`, `/depositor`
 - [ ] Zoom 125–150%, notifications off, mains power
 - [ ] Backup video cued in a fifth tab, muted
@@ -110,6 +110,46 @@ Point at the adapter panel on the right:
    > "Committed. Transaction id, block height — and look at the endorsers: the bank's peer **and** Bangladesh
    > Bank's. Without the supervisor's endorsement this transaction does not commit at all. Regulatory
    > approval is a precondition, not a review afterwards."
+
+---
+
+## Act 1b — who decides who the directors are? · 60 s
+
+**Only run this if Act 1 went well and you have time.** If a judge asks the question first, this is the
+answer, and answering it from the screen is worth more than answering it from the podium.
+
+7. Scroll down the Bank tab to **Your Board, as Bangladesh Bank sees it**. Three directors, all
+   `CONFIRMED`.
+
+   > "Three signatures cleared that. But who decides who the three directors are? If the bank does, I have
+   > just watched it approve itself."
+
+8. Switch to **Supervisor**, scroll to **Board confirmations**. Both banks' boards, each director's state,
+   and who confirmed them.
+
+   > "A bank registers a director. It cannot seat one. Until Bangladesh Bank confirms, that key's signature
+   > does not count."
+
+9. The proof, from the terminal:
+
+   ```bash
+   node redteam/run.mjs --only=9
+   ```
+
+   It registers three fresh directors as the bank's own MD/CEO, signs an RS-3 with all three, and is
+   refused:
+
+   > ⛔ `DIRECTOR_NOT_CONFIRMED: <key> (bank-appointed-0) was registered by BankAMSP on <date> but has
+   > not been confirmed by Bangladesh Bank. A bank cannot constitute its own Board`
+
+   > "Every signature there is cryptographically valid. Every key is in the bank's registered set. The
+   > threshold is met exactly. The only thing missing is the supervisor."
+
+   The script then confirms them and replays the **same three signatures**, which commit.
+
+   > "And this is not a new rule either. A director's appointment already needs Bangladesh Bank's approval
+   > under the Bank Company Act. We made an approval that exists on paper into a precondition the code
+   > checks."
 
 ---
 
@@ -274,6 +314,7 @@ node scripts/run-exposure-ceremony.mjs
 | *What if the CBS data is a lie?* | **It can be.** §7.4 #6. The defence is attribution and reconciliation, not prevention | Act 0's omission finding |
 | *Won't the index flag everyone?* | It would if E\* were set against zero. It is set against the measured base rate | The histogram |
 | *A bank could move its reschedulings.* | Yes, and the index weakens — but repetition still counts, the cap flags separately, and **the shift itself is on the ledger** | The queue's median-days column |
+| *Who appoints the directors?* | The bank proposes, **Bangladesh Bank confirms**, and an unconfirmed key's signature does not count | Supervisor → **Board confirmations**, or `redteam/run.mjs --only=9` |
 | *Key management?* | SoftHSM2 over PKCS#11 here; **FIPS 140-3 Level 3 is the production target, same interface** | Act 1's Board ceremony |
 | *Does it scale?* | 20.4 tx/s sustained on this laptop, everything on one host | [bench/RESULTS.md](bench/RESULTS.md) |
 | *What doesn't it do?* | Eleven things, §7.4. It recovers nothing, and it cannot prevent coordinated internal falsification | Hand them the dossier |

@@ -122,6 +122,41 @@ sequenceDiagram
 The "2 of 3" step is the one that matters — those are real ed25519 signatures, verified against the registered
 director set and counted as *distinct* signers. The threshold is not an array-length check.
 
+#### Act 1b — and who decides who the three directors are?
+
+Counting signatures proves that three keys signed. It says nothing about **whose** keys they are. A bank that
+can register its own directors registers three, signs its own RS-3 three times, and every check passes except
+the one that mattered.
+
+```mermaid
+sequenceDiagram
+    participant MD as Bank MD/CEO
+    participant CC as Chaincode
+    participant BB as Bangladesh Bank
+
+    MD->>CC: RegisterDirector x3
+    CC-->>MD: recorded — status PENDING
+
+    MD->>CC: RS-3, signed by all three
+    CC-->>MD: DIRECTOR_NOT_CONFIRMED<br/>a bank cannot constitute its own Board
+
+    BB->>CC: ConfirmDirector
+    CC-->>BB: status CONFIRMED, confirmer named
+    MD->>CC: the SAME three signatures
+    CC-->>MD: committed
+```
+
+Every signature in the refused attempt is cryptographically valid and every key is in the bank's registered
+set. Only the supervisor's confirmation is missing, and that is what made the Board a board.
+
+This adds **no new rule** either: a bank director's appointment already requires Bangladesh Bank's prior
+approval under the Bank Company Act 1991. Verity turns an approval that exists on paper into a precondition
+the code checks — the same move it makes for BRPD 16/2022 above.
+
+Records written before this control existed carry no status and are treated as **pending**, not
+grandfathered in. Failing closed is the only safe direction: the alternative silently exempts exactly the
+directors the control exists to catch.
+
 ### Act 2 — what the return records, and what the ledger records
 
 The same exposure, two columns. Every quarterly return in the sequence reports it as *Unclassified*.
@@ -298,8 +333,8 @@ Kept current. We would rather state this than be asked.
 
 | Component | Status |
 |---|---|
-| Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ running, 21 containers |
-| Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 38 tests |
+| Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ 21 containers |
+| Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 41 tests |
 | Governance — Council parameters, quorum-gated change | ✅ end to end · verified live |
 | Private data collections | ✅ payload vs hash, by identity |
 | Module II — encrypted cross-bank exposure | ✅ end to end · alert at Tk 950 vs 625 crore |
@@ -311,7 +346,7 @@ Kept current. We would rather state this than be asked.
 | Mock CBS, read-only adapter, CL-1 reconciliation | ✅ omission check live |
 | Bank officer · supervisor · depositor portals | ✅ containerised, started by `up.sh` |
 | Rebuild from block 0 | ✅ exposed as a control |
-| Red-team suite | ✅ **8/8 attacks refused** |
+| Red-team suite | ✅ 8/8 verified live · **#9 (Board independence) awaiting an on-ledger run** |
 | Measured performance | ✅ 20.4 tx/s · [bench/RESULTS.md](bench/RESULTS.md) |
 | **Browser walk-through by a human** | ⏳ **not yet done** |
 | Demo runbook and video scripts | ✅ [DEMO.md](DEMO.md) · [VIDEO.md](VIDEO.md) |

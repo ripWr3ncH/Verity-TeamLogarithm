@@ -15,7 +15,7 @@ round.
 
 ## Before recording
 
-- [ ] Full bring-up per [DEMO.md](DEMO.md) §0, seeded, `node redteam/run.mjs` → 8/8
+- [ ] Full bring-up per [DEMO.md](DEMO.md) §0, seeded, `node redteam/run.mjs` → 9/9
 - [ ] `./scripts/snapshot.sh` — so you can re-record from identical state
 - [ ] Screen at **1920×1080**, browser zoom **125%**, everything else closed
 - [ ] Notifications off, Do Not Disturb on, second monitor disconnected
@@ -76,7 +76,16 @@ The backup. Every beat is one you can also narrate live if you end up playing it
 | Tick two, submit. **supplied 2 of 3** | Two real ed25519 signatures, verified against the registered director set. Counted as two distinct signers, and still refused. This is not a length check on an array. |
 | Tick the third, submit. Receipt. | Three, and it commits. Endorsed by the bank and by Bangladesh Bank. |
 
-### 1:05–1:50 · What the return records, and what the ledger records
+### 1:05–1:25 · Who decides who the directors are?
+
+| On screen | Narration |
+|---|---|
+| Bank tab, scroll to **Your Board, as Bangladesh Bank sees it**. Three rows, all CONFIRMED. | Three signatures cleared that. But who decides who the three directors are? |
+| Switch to Supervisor, **Board confirmations**. Both banks' boards, confirmers named. | A bank registers a director. It cannot seat one. |
+| Terminal, `node redteam/run.mjs --only=9`. Hold on the refusal. | So: register three directors as the bank's own chief executive, and sign an RS-3 with all three. Every signature valid, every key in the bank's registered set, the threshold met exactly — and refused, because the supervisor never confirmed them. |
+| The next line, where the same signatures commit after confirmation | Confirmed, and the same three signatures commit. A director's appointment already needs Bangladesh Bank's approval. We made it a precondition the code checks. |
+
+### 1:25–2:05 · What the return records, and what the ledger records
 
 | On screen | Narration |
 |---|---|
@@ -84,7 +93,7 @@ The backup. Every beat is one you can also narrate live if you end up playing it
 | Split screen. Cursor down the left column, then the right. | Left: what the CL-1 recorded. Unclassified, unclassified, unclassified, unclassified. Right: the same loan. Four reschedulings — twelve days before quarter-end, eleven, fifteen, twenty-three. The index climbs to 6.055. |
 | Scroll to the base-rate histogram. Amber bars visible. | The obvious objection is that this flags everyone at quarter-end. Thirty-five per cent of all reschedulings here fall within thirty days of a reference date — ordinary forbearance clusters there too. Which is why the threshold is set against this curve and not against zero. A control loan scores 0.534. |
 
-### 1:50–2:20 · Cross-bank exposure without disclosure
+### 2:05–2:30 · Cross-bank exposure without disclosure
 
 | On screen | Narration |
 |---|---|
@@ -92,7 +101,7 @@ The backup. Every beat is one you can also narrate live if you end up playing it
 | The two refusal lines highlight | The chaincode multiplies the ciphertexts — nothing is decrypted. The supervisor alone cannot open the result. All three independent holders without the supervisor cannot either. |
 | ALERT line | Together: nine hundred and fifty crore. Over the system limit, while sitting under every single-bank limit. |
 
-### 2:20–2:45 · Governance, and a node going down
+### 2:30–2:50 · Governance, and a node going down
 
 | On screen | Narration |
 |---|---|
@@ -100,7 +109,7 @@ The backup. Every beat is one you can also narrate live if you end up playing it
 | Two more approvals, then activation with named approvers | Bangladesh Bank, then the FRC. It moves, recorded with the names of everyone who approved it. |
 | Terminal, `orderer-fault.sh` | Five ordering nodes across five organisations. Stop one. It commits anyway — four hundred and twenty-three milliseconds. |
 
-### 2:45–3:00 · Delete the database
+### 2:50–3:05 · Delete the database
 
 | On screen | Narration |
 |---|---|
@@ -108,8 +117,10 @@ The backup. Every beat is one you can also narrate live if you end up playing it
 | **On-screen caption: “90 seconds of replay, cut”** — then the queue full again, BD-4471 at 6.055 | The listener replays every committed block. They come back with the same scores. Nothing was lost, because nothing here was ever the record. |
 | Wordmark | Verity adds no rule. It makes dishonesty something you have to do deliberately, in your own name, in a record you cannot afterwards edit. |
 
-**≈ 430 words at 145 wpm.** Time your first read-through before recording; if you land over 3:10, cut the
-histogram sentence in the 1:05 block, not the refusal beats.
+**≈ 520 words at 145 wpm, landing near 3:05.** Time your first read-through before recording. If you run
+over 3:15, cut the histogram sentence in the 1:25 block — never a refusal beat. If you are badly over,
+drop the 1:05 board section entirely and keep it in your pocket for Q&A: it answers a question judges ask
+more often than they ask anything about the histogram.
 
 ---
 

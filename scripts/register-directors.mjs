@@ -81,13 +81,28 @@ for (const board of BOARDS) {
       process.exit(1);
     }
 
+    // The supervisor confirms. A bank cannot constitute its own Board, so this
+    // call runs as supervisor-1 and would be refused as anyone else.
+    const confirmed = await call('/board/confirm', SUPERVISOR, 'POST', {
+      mspId: board.msp,
+      keyId,
+    });
+
+    if (confirmed.status >= 400) {
+      process.stderr.write(
+        `  FAILED to confirm ${name}: ${confirmed.body?.message ?? confirmed.body?.error}
+`,
+      );
+      process.exit(1);
+    }
+
     wallet[name] = {
       keyId,
       publicKey: publicKeyB64,
       privateKey: privateKey.export({ format: 'pem', type: 'pkcs8' }).toString(),
       institution: board.prefix,
     };
-    process.stdout.write(`    ${name}  keyId ${keyId.slice(0, 16)}…\n`);
+    process.stdout.write(`    ${name}  keyId ${keyId.slice(0, 16)}…  registered + confirmed\n`);
   }
 }
 

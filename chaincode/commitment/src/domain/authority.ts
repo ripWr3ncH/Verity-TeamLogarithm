@@ -198,10 +198,19 @@ export function verifyAuthority(
  * hash from registered director credentials, validated by chaincode against the
  * registered director set for that institution AT THAT BLOCK HEIGHT."
  *
- * Three ways this refuses, and each is a red-team attack:
+ * Four ways this refuses, and each is a red-team attack:
  *   - too few valid signatures        -> BOARD_AUTHORISATION_REQUIRED  (attack 1)
  *   - a signer outside the set        -> DIRECTOR_NOT_REGISTERED       (attack 3)
+ *   - a signer the bank registered
+ *     but the supervisor has not
+ *     confirmed                       -> DIRECTOR_NOT_CONFIRMED        (attack 9)
  *   - the same director signing twice -> DUPLICATE_SIGNATURE
+ *
+ * The third is the one that makes the other three worth anything. Counting
+ * signatures proves a THRESHOLD was met; it says nothing about whether the
+ * signers are independent of the bank that benefits. A bank admin can register
+ * three keys it controls in a single transaction. Only the supervisor's
+ * confirmation makes the Board a board.
  */
 function verifyBoardThreshold(
   evidence: AuthorityEvidence,
@@ -220,6 +229,17 @@ function verifyBoardThreshold(
   for (const sig of supplied) {
     const director = active.get(sig.keyId);
     if (!director) throw refusals.directorNotRegistered(sig.keyId, ctx.callerMsp, ctx.blockHint);
+    // Registered is not the same as confirmed, and the difference is the whole
+    // point. `status` is absent on records written before this control existed,
+    // and those fail closed rather than being grandfathered in.
+    if (director.status !== 'CONFIRMED') {
+      throw refusals.directorNotConfirmed(
+        director.keyId,
+        director.name,
+        director.mspId,
+        director.registeredAt,
+      );
+    }
     if (counted.has(sig.keyId)) throw refusals.duplicateSignature(sig.keyId);
     if (verifyEd25519(director.publicKey, evHash, sig.signature)) counted.add(sig.keyId);
   }

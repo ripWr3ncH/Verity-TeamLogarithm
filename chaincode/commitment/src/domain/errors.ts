@@ -22,6 +22,7 @@ export const REFUSAL = {
   AUTHORITY_INSUFFICIENT: 'AUTHORITY_INSUFFICIENT',
   BOARD_AUTHORISATION_REQUIRED: 'BOARD_AUTHORISATION_REQUIRED',
   DIRECTOR_NOT_REGISTERED: 'DIRECTOR_NOT_REGISTERED',
+  DIRECTOR_NOT_CONFIRMED: 'DIRECTOR_NOT_CONFIRMED',
   DUPLICATE_SIGNATURE: 'DUPLICATE_SIGNATURE',
   IDENTITY_REVOKED: 'IDENTITY_REVOKED',
   APPEND_ONLY: 'APPEND_ONLY',
@@ -104,6 +105,23 @@ export const refusals = {
     new Refusal(
       REFUSAL.DIRECTOR_NOT_REGISTERED,
       `signer ${short(keyId)} is not in ${mspId}'s registered director set at ${blockHint}`,
+    ),
+
+  /**
+   * The answer to "who decides who the three directors are?"
+   *
+   * Without this, a bank admin registers three keys it controls and satisfies
+   * its own 3-of-3 Board threshold. The signature count would be enforced; the
+   * INDEPENDENCE of the signers would not. This refusal is what makes Act 1
+   * mean what it appears to mean.
+   */
+  directorNotConfirmed: (keyId: string, name: string, mspId: string, registeredAt: string) =>
+    new Refusal(
+      REFUSAL.DIRECTOR_NOT_CONFIRMED,
+      `${short(keyId)} (${name}) was registered by ${mspId} on ${registeredAt.slice(0, 10)} ` +
+        `but has not been confirmed by Bangladesh Bank. A bank cannot constitute its own ` +
+        `Board: a director's appointment requires the supervisor's prior approval ` +
+        `(Bank Company Act 1991, s.15)`,
     ),
 
   duplicateSignature: (keyId: string) =>

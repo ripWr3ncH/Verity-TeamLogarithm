@@ -24,13 +24,22 @@ import {
 import { REFUSAL, Refusal } from '../src/domain/errors';
 import { canonicalJson, eventHash, keyIdOf, sha256Hex, stateHash, verifyEd25519 } from '../src/domain/hash';
 import { AuthorityContext } from '../src/domain/authority';
-import { DirectorSignature, RegisteredDirector } from '../src/domain/types';
+import { DirectorSignature, DirectorStatus, RegisteredDirector } from '../src/domain/types';
 
 // --------------------------------------------------------------------------
 //  Helpers
 // --------------------------------------------------------------------------
 
-function newDirector(name: string): { director: RegisteredDirector; sign: (hex: string) => string } {
+/**
+ * `status` defaults to CONFIRMED because that is the steady state: a director
+ * the supervisor has already approved. Pass 'PENDING' (or undefined, which is
+ * what a record written before this control existed looks like) to exercise
+ * the independence check.
+ */
+function newDirector(
+  name: string,
+  status: DirectorStatus | null = 'CONFIRMED',
+): { director: RegisteredDirector; sign: (hex: string) => string } {
   const { publicKey, privateKey } = generateKeyPairSync('ed25519');
   const spki = publicKey.export({ format: 'der', type: 'spki' }) as Buffer;
   const publicKeyB64 = spki.toString('base64');
@@ -41,6 +50,8 @@ function newDirector(name: string): { director: RegisteredDirector; sign: (hex: 
       publicKey: publicKeyB64,
       name,
       registeredAt: '2027-01-01T00:00:00.000Z',
+      registeredBy: 'admin-banka',
+      ...(status ? { status, confirmedBy: 'supervisor-1' } : {}),
     },
     sign: (hex: string) =>
       cryptoSign(null, Buffer.from(hex, 'utf8'), privateKey).toString('base64'),
@@ -220,6 +231,75 @@ describe('authority evidence — k-of-n Board threshold (§3.7.1)', () => {
         detail,
       ),
     );
+  });
+
+  it('RED TEAM #9 — refuses a director the bank registered but the supervisor has not confirmed', () => {
+    // The attack this closes: a bank admin registers three keys it controls and
+    // clears its own 3-of-3 Board threshold. Counting signatures is not enough;
+    // the signers have to be independent of the bank that benefits.
+    const board = [
+      newDirector('confirmed-0'),
+      newDirector('confirmed-1'),
+      newDirector('bank-appointed', 'PENDING'),
+    ];
+    const sigs: DirectorSignature[] = board.map((b) => ({
+      keyId: b.director.keyId,
+      signature: b.sign(hash),
+    }));
+    const code = refusalCode(() =>
+      verifyAuthority(
+        'BOARD_THRESHOLD',
+        { kind: 'BOARD_THRESHOLD', directorSignatures: sigs },
+        hash,
+        baseCtx({ registeredDirectors: board.map((b) => b.director) }),
+        detail,
+      ),
+    );
+    assert.equal(code, REFUSAL.DIRECTOR_NOT_CONFIRMED);
+  });
+
+  it('fails CLOSED on a director record written before confirmation existed', () => {
+    // `status: undefined` is what the ledger holds for directors registered
+    // before this control shipped. Treating those as confirmed would silently
+    // grandfather in precisely the case the control exists to catch.
+    const board = [newDirector('legacy-0', null), newDirector('c1'), newDirector('c2')];
+    const sigs: DirectorSignature[] = board.map((b) => ({
+      keyId: b.director.keyId,
+      signature: b.sign(hash),
+    }));
+    const code = refusalCode(() =>
+      verifyAuthority(
+        'BOARD_THRESHOLD',
+        { kind: 'BOARD_THRESHOLD', directorSignatures: sigs },
+        hash,
+        baseCtx({ registeredDirectors: board.map((b) => b.director) }),
+        detail,
+      ),
+    );
+    assert.equal(code, REFUSAL.DIRECTOR_NOT_CONFIRMED);
+  });
+
+  it('a revoked director is refused as unregistered, not as unconfirmed', () => {
+    // Order matters for the message a judge reads: revocation is the stronger
+    // statement and should be the one reported.
+    const confirmed = newDirector('was-a-director');
+    confirmed.director.revokedAt = '2027-06-01T00:00:00.000Z';
+    const rest = [newDirector('c1'), newDirector('c2')];
+    const all = [confirmed, ...rest];
+    const sigs: DirectorSignature[] = all.map((b) => ({
+      keyId: b.director.keyId,
+      signature: b.sign(hash),
+    }));
+    const code = refusalCode(() =>
+      verifyAuthority(
+        'BOARD_THRESHOLD',
+        { kind: 'BOARD_THRESHOLD', directorSignatures: sigs },
+        hash,
+        baseCtx({ registeredDirectors: all.map((b) => b.director) }),
+        detail,
+      ),
+    );
+    assert.equal(code, REFUSAL.DIRECTOR_NOT_REGISTERED);
   });
 
   it('RED TEAM #3 — refuses a signer outside the registered director set', () => {

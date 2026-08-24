@@ -16,7 +16,8 @@ Each file answers the same four questions, in this order:
 | 2 | `PHASE_02_MODULES.md` | Exposure, liability, claims chaincode |
 | 3 | `PHASE_03_SERVICES.md` | API gateway, listener, read model, mock CBS, EDI engine, seed |
 | 4 | `PHASE_04_PORTALS.md` | Bank officer, supervisor, depositor portals |
-| 5 | `PHASE_05_HARDENING.md` | Benchmark, red-team suite, demo assets |
+| 5 | [`PHASE_05_SERVICES_LIVE.md`](PHASE_05_SERVICES_LIVE.md) | Benchmark, red-team suite, demo assets |
+| 6 | [`PHASE_06_BOARD_INDEPENDENCE.md`](PHASE_06_BOARD_INDEPENDENCE.md) | Supervisory confirmation of directors; containerised services and portal |
 
 ## House rules
 

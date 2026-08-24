@@ -9,6 +9,12 @@
 
 import { Context } from 'fabric-contract-api';
 
+/**
+ * The supervisor's MSP. Named once, here, rather than string-compared at each
+ * call site: a typo in one of those comparisons is a silent authorisation hole.
+ */
+export const SUPERVISOR_MSP = 'BangladeshBankMSP';
+
 export const KEY = {
   LOAN: 'LOAN',
   EVENT: 'EVENT',

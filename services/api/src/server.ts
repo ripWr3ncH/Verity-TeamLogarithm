@@ -405,7 +405,12 @@ app.get<{ Params: { id: string; seq: string } }>(
 //  The Board — registration and the signing ceremony
 // ==========================================================================
 
-/** Register a director's public key. Org admin or MD/CEO only. */
+/**
+ * Register a director's public key. Org admin or MD/CEO only.
+ *
+ * The record lands PENDING. It cannot satisfy a Board threshold until the
+ * supervisor confirms it via POST /board/confirm — see the note there.
+ */
 app.post<{ Body: { keyId: string; publicKey: string; name: string } }>(
   '/board/register',
   async (request, reply) => {
@@ -424,6 +429,57 @@ app.post<{ Body: { keyId: string; publicKey: string; name: string } }>(
     }
   },
 );
+
+/**
+ * The supervisor confirms a director the bank proposed.
+ *
+ * ══════════════════════════════════════════════════════════════════════════
+ *  WITHOUT THIS, ACT 1 PROVES LESS THAN IT APPEARS TO.
+ *
+ *  A k-of-n threshold shows that k keys signed. It says nothing about whose
+ *  keys they are. If a bank can register its own directors, it registers
+ *  three, signs its own RS-3 three times, and every check passes except the
+ *  one that mattered.
+ *
+ *  This adds no new rule. A bank director's appointment already requires
+ *  Bangladesh Bank's prior approval (Bank Company Act 1991, s.15). Verity
+ *  turns an approval that exists on paper into a precondition the code checks
+ *  — the same move it makes for BRPD 16/2022 in the lifecycle contract.
+ * ══════════════════════════════════════════════════════════════════════════
+ */
+app.post<{ Body: { mspId: string; keyId: string } }>(
+  '/board/confirm',
+  async (request, reply) => {
+    try {
+      const b = request.body;
+      const out = await submit(
+        actingUser(request),
+        'commitment',
+        'LifecycleContract',
+        'ConfirmDirector',
+        [b.mspId, b.keyId],
+      );
+      return reply.code(200).send(out);
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
+/** The board of one institution, with each director's confirmation state. */
+app.get<{ Params: { mspId: string } }>('/board/:mspId', async (request, reply) => {
+  try {
+    return await evaluate(
+      actingUser(request),
+      'commitment',
+      'LifecycleContract',
+      'ListDirectors',
+      [request.params.mspId],
+    );
+  } catch (error) {
+    return handle(reply, error);
+  }
+});
 
 /**
  * The k-of-n signing ceremony.

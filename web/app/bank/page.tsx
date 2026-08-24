@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { RefusalPanel, ReceiptPanel } from '@/components/Outcome';
+import { BoardRoster, isUsable, useBoard } from '@/components/Board';
 import { useIdentity } from '@/components/Shell';
 import {
   api,
@@ -48,8 +49,8 @@ const EVENT_TYPES = [
 
 const TIERS = ['STANDARD', 'SMA', 'SUB_STANDARD', 'DOUBTFUL', 'BAD_LOSS'] as const;
 
-/** Wallet names registered by scripts/register-directors.mjs. */
-const DIRECTORS = ['director-1', 'director-2', 'director-3'] as const;
+// The board is read from the ledger rather than hardcoded, because its
+// CONFIRMATION STATE is the point — see components/Board.tsx.
 
 export default function BankPortal(): React.ReactNode {
   const { current } = useIdentity();
@@ -64,6 +65,9 @@ export default function BankPortal(): React.ReactNode {
   const [tierAfter, setTierAfter] = useState<string>('STANDARD');
   const [eventDate, setEventDate] = useState('2027-06-18');
   const [signers, setSigners] = useState<string[]>([]);
+
+  const { board } = useBoard(current?.mspId, identity);
+  const seatable = board.filter((d) => !d.revokedAt);
 
   const [busy, setBusy] = useState(false);
   const [outcome, setOutcome] = useState<Outcome<unknown>>();
@@ -267,22 +271,40 @@ export default function BankPortal(): React.ReactNode {
                       Three of the registered directors must sign.
                     </p>
                     <div className="row">
-                      {DIRECTORS.map((d) => (
-                        <label key={d} className="check">
+                      {seatable.map((d) => (
+                        <label
+                          key={d.keyId}
+                          className="check"
+                          title={
+                            isUsable(d)
+                              ? `confirmed by ${d.confirmedBy ?? 'the supervisor'}`
+                              : 'registered by this bank, not yet confirmed by Bangladesh Bank'
+                          }
+                        >
                           <input
                             type="checkbox"
-                            checked={signers.includes(d)}
+                            checked={signers.includes(d.name)}
                             onChange={(e) =>
                               setSigners((prev) =>
-                                e.target.checked ? [...prev, d] : prev.filter((x) => x !== d),
+                                e.target.checked
+                                  ? [...prev, d.name]
+                                  : prev.filter((x) => x !== d.name),
                               )
                             }
                           />
-                          {d}
+                          {d.name}
+                          {/* Deliberately still tickable when unconfirmed: the
+                              refusal is the demo. A disabled checkbox would hide
+                              the control instead of showing it working. */}
+                          {!isUsable(d) && <span className="pill amber">unconfirmed</span>}
                         </label>
                       ))}
                       <span className="spacer" />
-                      <span className="pill quiet">{signers.length} of 3 signed</span>
+                      <span className="pill quiet">
+                        {signers.filter((n) => seatable.some((d) => d.name === n && isUsable(d)))
+                          .length}{' '}
+                        of 3 confirmed signers
+                      </span>
                     </div>
                   </>
                 ) : (
@@ -308,6 +330,8 @@ export default function BankPortal(): React.ReactNode {
             </div>
           )}
         </div>
+
+        <BoardRoster mspId={current?.mspId} identity={identity} />
 
         {/* ---------- trail ---------- */}
         <div className="card">

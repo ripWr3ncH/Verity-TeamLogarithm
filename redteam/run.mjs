@@ -2,7 +2,7 @@
 /**
  * VERITY — the red-team suite.
  *
- * Eight attacks, eight expected refusals. Runnable in front of judges.
+ * Nine attacks, nine expected refusals. Runnable in front of judges.
  *
  * Offering to attack your own system is a strong move: it converts the Privacy
  * and Governance criteria from claims into demonstrations, and every message
@@ -14,7 +14,7 @@
  *   node redteam/run.mjs --only=5
  */
 
-import { createHash } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign as cryptoSign } from 'node:crypto';
 
 const API = process.env.VERITY_API ?? 'http://127.0.0.1:4000';
 const Z = '0'.repeat(64);
@@ -267,6 +267,82 @@ if (run(8)) {
     console.log(
       `  ${C.dim}  and their earlier events remain valid: ${LOAN} is still ` +
         `${earlier.status === 200 ? 'readable on the ledger' : 'UNREADABLE — investigate'}${C.off}\n`,
+    );
+  }
+}
+
+// -- 9 ----------------------------------------------------------------------
+if (run(9)) {
+  // ========================================================================
+  //  THE BANK CONSTITUTES ITS OWN BOARD.
+  //
+  //  Attack 1 proves a threshold is counted. It says nothing about WHO the
+  //  signers are. So: register three fresh directors as the bank's own MD,
+  //  sign an RS-3 with all three, and see whether counting was ever the point.
+  //
+  //  Every signature here is cryptographically valid. Every key is in the
+  //  bank's registered set. The threshold is met exactly. The only thing
+  //  missing is the supervisor's confirmation, which is the only thing that
+  //  made the Board a board.
+  // ========================================================================
+  const puppets = [];
+  for (let i = 0; i < 3; i++) {
+    const { publicKey, privateKey } = generateKeyPairSync('ed25519');
+    const spki = publicKey.export({ format: 'der', type: 'spki' });
+    const publicKeyB64 = spki.toString('base64');
+    const keyId = sha256Hex(spki);
+    const reg = await call('/board/register', 'md-banka', 'POST', {
+      keyId,
+      publicKey: publicKeyB64,
+      name: `bank-appointed-${i}`,
+    });
+    if (reg.status >= 400) {
+      record(9, 'Bank registers its OWN Board and uses it', 'DIRECTOR_NOT_CONFIRMED',
+        'COULD_NOT_REGISTER', reg.body?.message?.slice(0, 140));
+      break;
+    }
+    puppets.push({ keyId, privateKey });
+  }
+
+  if (puppets.length === 3) {
+    const fresh = `BD-RT9-${Math.floor(Math.random() * 99999)}`;
+    await call('/loans', 'officer-rahim', 'POST', {
+      commitmentId: fresh, initialTier: 'STANDARD', outstandingBand: 'Tk 100-150 crore',
+      groupToken: 'G-0447', payloadHash: Z, originationDate: '2027-01-15',
+    });
+    let l9 = await wait(fresh);
+    for (let i = 0; i < 2; i++) {
+      const { body } = await eventBody(l9, { eventDate: i ? '2027-12-20' : '2027-06-18' });
+      await call('/events', 'officer-nasrin', 'POST', body);
+      l9 = await wait(fresh);
+    }
+
+    // Sign the REAL event hash with the REAL keys. Nothing here is forged.
+    const probe = await eventBody(l9, { eventDate: '2028-09-15' });
+    const { body } = await eventBody(l9, {
+      eventDate: '2028-09-15',
+      authorityEvidence: {
+        kind: 'BOARD_THRESHOLD',
+        directorSignatures: puppets.map((d) => ({
+          keyId: d.keyId,
+          signature: cryptoSign(null, Buffer.from(probe.evHash, 'utf8'), d.privateKey)
+            .toString('base64'),
+        })),
+      },
+    });
+    want(9, 'Bank registers its OWN Board and uses it', 'DIRECTOR_NOT_CONFIRMED',
+      await call('/events', 'officer-nasrin', 'POST', body));
+
+    // The other half: once the SUPERVISOR confirms, the same signatures work.
+    // A control that only ever refuses has not been shown to be a control.
+    for (const d of puppets) {
+      await call('/board/confirm', 'supervisor-1', 'POST', { mspId: 'BankAMSP', keyId: d.keyId });
+    }
+    const after = await call('/events', 'officer-nasrin', 'POST', body);
+    console.log(
+      `  ${C.dim}  and once Bangladesh Bank confirms them, the SAME three signatures ` +
+        `${after.status < 400 && !after.body?.refused ? 'commit' : 'still fail - investigate'}${C.off}
+`,
     );
   }
 }

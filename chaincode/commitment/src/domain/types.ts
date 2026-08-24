@@ -207,6 +207,15 @@ export interface ParameterProposal {
 //  Directors — the registered set that BOARD_THRESHOLD is checked against
 // --------------------------------------------------------------------------
 
+/**
+ * A director is only usable once the SUPERVISOR has confirmed them.
+ *
+ * `undefined` means the record predates confirmation and is treated as PENDING.
+ * Failing closed is deliberate: the alternative would silently grandfather in
+ * exactly the directors this control exists to catch.
+ */
+export type DirectorStatus = 'PENDING' | 'CONFIRMED';
+
 export interface RegisteredDirector {
   keyId: string;
   mspId: string;
@@ -214,7 +223,14 @@ export interface RegisteredDirector {
   publicKey: string;
   name: string;
   registeredAt: string;
+  /** The bank admin who submitted the registration. Named, never anonymous. */
+  registeredBy?: string;
+  status?: DirectorStatus;
+  /** The supervisory officer who confirmed. Recorded so the approval has a name. */
+  confirmedBy?: string;
+  confirmedAt?: string;
   revokedAt?: string;
+  revokedBy?: string;
 }
 
 // --------------------------------------------------------------------------
