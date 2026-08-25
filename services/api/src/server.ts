@@ -466,6 +466,33 @@ app.post<{ Body: { mspId: string; keyId: string } }>(
   },
 );
 
+/**
+ * Revoke a director. The bank's own admin or the supervisor.
+ *
+ * Forward-only (§4.4): the record is marked revoked, never deleted, so a
+ * departed director cannot sign a LATER event while their earlier signatures
+ * remain valid. Removing the row would invalidate history that was legitimately
+ * approved at the time.
+ */
+app.post<{ Body: { mspId: string; keyId: string } }>(
+  '/board/revoke',
+  async (request, reply) => {
+    try {
+      const b = request.body;
+      const out = await submit(
+        actingUser(request),
+        'commitment',
+        'LifecycleContract',
+        'RevokeDirector',
+        [b.mspId, b.keyId],
+      );
+      return reply.code(200).send(out);
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
 /** The board of one institution, with each director's confirmation state. */
 app.get<{ Params: { mspId: string } }>('/board/:mspId', async (request, reply) => {
   try {

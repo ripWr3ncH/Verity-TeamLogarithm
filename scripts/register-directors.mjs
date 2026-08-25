@@ -41,9 +41,20 @@ const WALLET = resolve('network/organizations/directors.json');
  * correctly, and confusingly if you forgot this step.
  */
 const BOARDS = [
-  { registrar: 'md-banka', prefix: 'banka', directors: ['director-1', 'director-2', 'director-3'] },
-  { registrar: 'md-bankb', prefix: 'bankb', directors: ['bankb-director-1', 'bankb-director-2', 'bankb-director-3'] },
+  { registrar: 'md-banka', msp: 'BankAMSP', prefix: 'banka', directors: ['director-1', 'director-2', 'director-3'] },
+  { registrar: 'md-bankb', msp: 'BankBMSP', prefix: 'bankb', directors: ['bankb-director-1', 'bankb-director-2', 'bankb-director-3'] },
 ];
+
+/**
+ * Registration is only half of it.
+ *
+ * A director the bank registered is PENDING and cannot satisfy a Board
+ * threshold — a bank does not get to constitute its own Board. Bangladesh Bank
+ * confirms, and only then does the signature count. Without this second step
+ * every RS-3 refuses with DIRECTOR_NOT_CONFIRMED: correctly, and confusingly if
+ * you forgot this line.
+ */
+const SUPERVISOR = 'supervisor-1';
 
 const sha256Hex = (buf) => createHash('sha256').update(buf).digest('hex');
 
@@ -61,6 +72,32 @@ const wallet = {};
 
 for (const board of BOARDS) {
   process.stdout.write(`\n  ${board.prefix} — registrar ${board.registrar}\n`);
+
+  // Retire whatever is already seated, first.
+  //
+  // Every run of this script mints FRESH keypairs, so without this a second run
+  // leaves the old ones registered under the same display name with a different
+  // keyId. The board then reads "director-1, director-1, director-1" in the
+  // portal, and a judge is entitled to ask which one signed.
+  //
+  // Revocation is forward-only, so the retired records stay on the ledger and
+  // events they legitimately approved remain valid. That is the point of
+  // retiring rather than deleting.
+  const existing = await call(`/board/${board.msp}`, board.registrar, 'GET');
+  if (existing.status === 200 && Array.isArray(existing.body)) {
+    const live = existing.body.filter((d) => !d.revokedAt);
+    for (const d of live) {
+      const r = await call('/board/revoke', board.registrar, 'POST', {
+        mspId: board.msp,
+        keyId: d.keyId,
+      });
+      if (r.status >= 400) {
+        process.stderr.write(`  could not retire ${d.name}: ${r.body?.message ?? r.body?.error}\n`);
+        process.exit(1);
+      }
+    }
+    if (live.length) process.stdout.write(`    retired ${live.length} previously seated\n`);
+  }
 
   for (const name of board.directors) {
     const { publicKey, privateKey } = generateKeyPairSync('ed25519');

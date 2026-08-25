@@ -344,6 +344,13 @@ if (run(9)) {
         `${after.status < 400 && !after.body?.refused ? 'commit' : 'still fail - investigate'}${C.off}
 `,
     );
+
+    // Unseat them. This attack SEATS three directors to prove the second half,
+    // and without this every run leaves three more permanently on the board.
+    // By the fourth rehearsal the portal roster no longer matches the poster.
+    for (const d of puppets) {
+      await call('/board/revoke', 'supervisor-1', 'POST', { mspId: 'BankAMSP', keyId: d.keyId });
+    }
   }
 }
 

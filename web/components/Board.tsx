@@ -45,6 +45,17 @@ export const isUsable = (d: Director): boolean =>
 
 const shortKey = (k: string): string => `${k.slice(0, 10)}…`;
 
+/**
+ * The ledger records the full X.509 distinguished name, because that is the
+ * exact identity that acted. A person reads the common name. Both are true;
+ * this is only the display half.
+ */
+const who = (dn: string | undefined): string => {
+  if (!dn) return '—';
+  const cn = /CN=([^:,/]+)/.exec(dn);
+  return cn?.[1] ?? dn;
+};
+
 async function fetchBoard(mspId: string, identity: string): Promise<Director[]> {
   const r = await fetch(`${API_BASE}/board/${mspId}`, {
     headers: { 'X-Verity-Identity': identity },
@@ -93,7 +104,12 @@ export function BoardRoster({
   identity: string | undefined;
 }): React.ReactNode {
   const { board, error } = useBoard(mspId, identity);
-  const pending = board.filter((d) => !isUsable(d) && !d.revokedAt).length;
+  // Revoked directors stay on the ledger forever, deliberately, so the seated
+  // board is the live set. The retired count is shown below rather than a
+  // dozen struck-through rows.
+  const seated = board.filter((d) => !d.revokedAt);
+  const retired = board.length - seated.length;
+  const pending = seated.filter((d) => !isUsable(d)).length;
 
   return (
     <div className="card">
@@ -116,17 +132,17 @@ export function BoardRoster({
             </tr>
           </thead>
           <tbody>
-            {board.map((d) => (
+            {seated.map((d) => (
               <tr key={d.keyId}>
                 <td>{d.name}</td>
                 <td className="mono">{shortKey(d.keyId)}</td>
                 <td>
                   <StatusPill d={d} />
                 </td>
-                <td className="mono">{d.confirmedBy ?? '—'}</td>
+                <td className="mono" title={d.confirmedBy}>{who(d.confirmedBy)}</td>
               </tr>
             ))}
-            {board.length === 0 && (
+            {seated.length === 0 && (
               <tr>
                 <td colSpan={4} className="hint">
                   No directors registered. Run <code>node scripts/register-directors.mjs</code>.
@@ -141,6 +157,13 @@ export function BoardRoster({
         <p className="hint">
           {pending} awaiting Bangladesh Bank. Signatures from those keys are refused with{' '}
           <code>DIRECTOR_NOT_CONFIRMED</code>.
+        </p>
+      )}
+
+      {retired > 0 && (
+        <p className="hint">
+          {retired} retired, still on the ledger. Revocation is forward-only: they cannot sign a new
+          event, and everything they approved before remains valid.
         </p>
       )}
     </div>
@@ -202,6 +225,7 @@ export function BoardConfirmation({
 
       {BANKS.map(({ mspId, label }) => {
         const { board, error } = byMsp[mspId]!;
+        const seated = board.filter((d) => !d.revokedAt);
         return (
           <div key={mspId} style={{ marginBottom: '.9rem' }}>
             <h4 style={{ margin: '0 0 .4rem', fontSize: '.9rem' }}>{label}</h4>
@@ -209,7 +233,7 @@ export function BoardConfirmation({
             <div className="scroller">
               <table>
                 <tbody>
-                  {board.map((d) => (
+                  {seated.map((d) => (
                     <tr key={d.keyId}>
                       <td>{d.name}</td>
                       <td className="mono">{shortKey(d.keyId)}</td>
@@ -229,7 +253,7 @@ export function BoardConfirmation({
                       </td>
                     </tr>
                   ))}
-                  {board.length === 0 && (
+                  {seated.length === 0 && (
                     <tr>
                       <td className="hint">no directors registered</td>
                     </tr>

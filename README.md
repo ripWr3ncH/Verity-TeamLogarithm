@@ -346,7 +346,7 @@ Kept current. We would rather state this than be asked.
 | Mock CBS, read-only adapter, CL-1 reconciliation | ✅ omission check live |
 | Bank officer · supervisor · depositor portals | ✅ containerised, started by `up.sh` |
 | Rebuild from block 0 | ✅ exposed as a control |
-| Red-team suite | ✅ 8/8 verified live · **#9 (Board independence) awaiting an on-ledger run** |
+| Red-team suite | ✅ **9/9 attacks refused**, verified live |
 | Measured performance | ✅ 20.4 tx/s · [bench/RESULTS.md](bench/RESULTS.md) |
 | **Browser walk-through by a human** | ⏳ **not yet done** |
 | Demo runbook and video scripts | ✅ [DEMO.md](DEMO.md) · [VIDEO.md](VIDEO.md) |
