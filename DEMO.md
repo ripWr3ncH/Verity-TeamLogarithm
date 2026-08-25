@@ -22,7 +22,6 @@ cd network && ./network.sh up && cd ..
 docker compose -f network/compose/compose-ca.yaml up -d
 cd network && ./scripts/enroll-users.sh && cd ..
 for cc in commitment exposure claims; do ./scripts/deploy-cc.sh "$cc"; done
-CC_SEQUENCE=2 ./scripts/deploy-cc.sh commitment      # private data collections
 
 # 2. Services — Postgres, API, listener and portal, all containers
 docker compose -f services/compose.yaml up -d --build
@@ -38,6 +37,12 @@ node scripts/run-liability-commitment.mjs
 
 > `network.sh up` regenerates all crypto material, so **`enroll-users.sh` must be re-run after it** — old
 > certificates chain to a root that no longer exists, and the failure looks like TLS rather than identity.
+
+> **On a fresh network you never need `CC_SEQUENCE`.** `deploy-cc.sh commitment` always passes
+> `--collections-config`, so sequence 1 is already the finished chaincode. Bump the sequence only to
+> UPGRADE a network that is already running — and if you do, re-run
+> `node scripts/register-directors.mjs`, because directors registered under an older sequence are
+> unconfirmed and every RS-3 will refuse.
 
 ### Pre-flight checklist
 
