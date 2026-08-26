@@ -794,15 +794,27 @@ app.post<{ Body: { institutionMsp: string; period: string; proof: unknown } }>(
  */
 app.get('/depositor/session', async (_request, reply) => {
   try {
+    // Same rule as the crypto material and the director wallet: an explicit
+    // env var first, cwd only as the shell fallback. compose sets
+    // VERITY_DEPOSITOR_FIXTURE and mounts seed/out, because from /app the
+    // relative form resolves to /seed/out, which is outside every mount.
     const path = process.env['VERITY_DEPOSITOR_FIXTURE']
       ?? resolve(process.cwd(), '..', '..', 'seed', 'out', 'depositor.json');
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch {
+    // Name the path. The old message said only "run the commitment script",
+    // which is wrong and wastes a rehearsal when the script HAS run and the
+    // file simply is not reachable from in here.
+    const attempted = process.env['VERITY_DEPOSITOR_FIXTURE']
+      ?? resolve(process.cwd(), '..', '..', 'seed', 'out', 'depositor.json');
     return reply.code(503).send({
       refused: false,
       error:
-        'DEPOSITOR_NOT_COMMITTED: no liability commitment yet. ' +
-        'Run: node scripts/run-liability-commitment.mjs',
+        `DEPOSITOR_NOT_COMMITTED: no depositor fixture readable at ${attempted}. ` +
+        'If scripts/run-liability-commitment.mjs has already run, the file exists ' +
+        'but is not mounted into this container — check the seed/out volume and ' +
+        'VERITY_DEPOSITOR_FIXTURE in services/compose.yaml. Otherwise run: ' +
+        'node scripts/run-liability-commitment.mjs',
     });
   }
 });

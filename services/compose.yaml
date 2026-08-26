@@ -73,12 +73,17 @@ services:
       # our code). In-network, so 5432 and the service name -- localhost:5433 is
       # the HOST-published port and resolves to this container from in here.
       CBS_ADAPTER_URL: postgres://verity_adapter:verity_adapter_dev_only@postgres:5432/verity
+      VERITY_DEPOSITOR_FIXTURE: /verity/seed/out/depositor.json
       # Identities are read from the network's crypto material. One X.509 per
       # officer — never a shared service account (services/api/src/identities.ts).
       VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
     ports: ["4000:4000"]
     volumes:
       - ../network/organizations:/verity/network/organizations:ro
+      # The depositor's Merkle leaf and inclusion proof, written by
+      # scripts/run-liability-commitment.mjs. Read-only: the API serves it, the
+      # seed tooling on the host owns it.
+      - ../seed/out:/verity/seed/out:ro
     depends_on:
       postgres:
         condition: service_healthy
