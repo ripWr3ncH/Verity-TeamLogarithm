@@ -33,8 +33,24 @@ const PORT = Number(process.env['PORT'] ?? 4000);
 interface DirectorKey { keyId: string; publicKey: string; privateKey: string }
 
 function loadDirectorWallet(): Record<string, DirectorKey> {
-  const path = process.env['VERITY_DIRECTOR_WALLET'] ??
-    resolve(process.cwd(), '..', '..', 'network', 'organizations', 'directors.json');
+  // Derived from VERITY_CRYPTO_PATH, not from cwd.
+  //
+  // The wallet sits beside peerOrganizations/ in network/organizations/, and
+  // that directory is already mounted into the container and already named by
+  // VERITY_CRYPTO_PATH. Resolving it from process.cwd() instead gave
+  // /app/../../network/... = /network/..., which exists nowhere, so the
+  // ceremony failed with DIRECTORS_NOT_REGISTERED naming a path nobody chose
+  // -- while the wallet sat correctly mounted one directory up.
+  //
+  // Same shape of bug as the hardcoded localhost peer endpoints: right from a
+  // shell, wrong in a container, and only visible once the API actually ran
+  // as one.
+  const cryptoPath = process.env['VERITY_CRYPTO_PATH'];
+  const path =
+    process.env['VERITY_DIRECTOR_WALLET'] ??
+    (cryptoPath
+      ? resolve(cryptoPath, '..', 'directors.json')
+      : resolve(process.cwd(), '..', '..', 'network', 'organizations', 'directors.json'));
   try {
     return JSON.parse(readFileSync(path, 'utf8')) as Record<string, DirectorKey>;
   } catch {
