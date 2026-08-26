@@ -19,7 +19,7 @@
  * It is rendered above every score on this page, permanently.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { BoardConfirmation } from '@/components/Board';
 import { RefusalPanel } from '@/components/Outcome';
@@ -71,6 +71,7 @@ export default function SupervisorPortal(): React.ReactNode {
   const [accessLog, setAccessLog] = useState<Array<{ timestamp: string; actorMsp: string; resource: string; action: string }>>([]);
   const [error, setError] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const detailRef = useRef<HTMLDivElement>(null);
 
   const [proposalId, setProposalId] = useState('');
   const [proposedEStar, setProposedEStar] = useState('1.117');
@@ -109,6 +110,15 @@ export default function SupervisorPortal(): React.ReactNode {
       } else {
         setLoan(result.result.loan);
         setTrail(result.result.events);
+        // Bring the detail into view.
+        //
+        // The panel renders below the reconciliation table, so clicking a row
+        // near the top of a long page appeared to do nothing at all. On stage
+        // that means clicking again — and every supervisory read is a SUBMIT
+        // transaction that costs a block, so a silent click is not free.
+        requestAnimationFrame(() => {
+          detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
         await refresh();
       }
     } catch (e) {
@@ -211,7 +221,7 @@ export default function SupervisorPortal(): React.ReactNode {
       </div>
 
       {loan && (
-        <>
+        <div ref={detailRef}>
           <h2>
             {loan.commitmentId} · {loan.institutionMsp}
           </h2>
@@ -355,7 +365,7 @@ export default function SupervisorPortal(): React.ReactNode {
               </table>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* ---------- Act 5 ---------- */}
