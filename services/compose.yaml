@@ -69,6 +69,10 @@ services:
       # and inside a container `localhost:9071` is the container itself.
       VERITY_PEER_HOST: dns
       LISTENER_CONTROL_URL: http://verity-listener:4100
+      # The read-only adapter role (SELECT only, enforced by the grant, not by
+      # our code). In-network, so 5432 and the service name -- localhost:5433 is
+      # the HOST-published port and resolves to this container from in here.
+      CBS_ADAPTER_URL: postgres://verity_adapter:verity_adapter_dev_only@postgres:5432/verity
       # Identities are read from the network's crypto material. One X.509 per
       # officer — never a shared service account (services/api/src/identities.ts).
       VERITY_CRYPTO_PATH: /verity/network/organizations/peerOrganizations
