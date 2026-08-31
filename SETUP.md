@@ -100,6 +100,16 @@ npm run test:all                           # 170 tests, 0 failures
 node redteam/run.mjs                       # 10 attacks, 10 refusals
 ```
 
+Or run all of it at once:
+
+```bash
+./scripts/smoke.sh     # 54 checks: containers, channels, HTTP, data, a real write, tests, red team
+```
+
+That is the one to run before handing the repo to someone else, before a
+rehearsal, and at the venue before the judges arrive. It exits non-zero and
+names what broke.
+
 `redteam/run.mjs` is the strongest single check — it drives the live ledger end to end. If it reports 10/10,
 everything below it is working.
 
