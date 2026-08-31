@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Verity">
+  <!--
+    The same mark the header draws: `.brand::before` is a 9x24 ink bar with a
+    2px radius, on paper. Scaled here to a 32px tab icon rather than invented,
+    so the tab and the page agree.
+
+    Next.js App Router serves app/icon.svg as the favicon automatically. Before
+    this existed every page logged a /favicon.ico 404 and browsers showed the
+    broken-document glyph in the tab, which is visible in a recorded demo.
+  -->
+  <rect width="32" height="32" rx="6" fill="#f1f0ea"/>
+  <rect x="9" y="5" width="7" height="22" rx="2" fill="#111111"/>
+  <rect x="19" y="5" width="4" height="22" rx="2" fill="#6fe79f"/>
+</svg>
