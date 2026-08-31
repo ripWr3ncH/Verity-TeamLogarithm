@@ -15,7 +15,8 @@
   "workspaces": [
     "packages/*",
     "services/*",
-    "web"
+    "web",
+    "seed"
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
@@ -23,7 +24,8 @@
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:chaincode": "npm --prefix chaincode/commitment test && npm --prefix chaincode/exposure test && npm --prefix chaincode/claims test",
-    "install:chaincode": "npm --prefix chaincode/commitment install && npm --prefix chaincode/exposure install && npm --prefix chaincode/claims install"
+    "install:chaincode": "npm --prefix chaincode/commitment install && npm --prefix chaincode/exposure install && npm --prefix chaincode/claims install",
+    "test:all": "npm test && for p in chaincode/commitment chaincode/exposure chaincode/claims; do npm --prefix $p test || exit 1; done"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

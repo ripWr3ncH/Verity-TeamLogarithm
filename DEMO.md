@@ -267,7 +267,7 @@ node scripts/run-exposure-ceremony.mjs
    ```bash
    node redteam/run.mjs
    ```
-   > "Eight attacks. Eight refusals. Equal seniority approving, a signature from outside the director set, a
+   > "Nine attacks. Nine refusals. Equal seniority approving, a signature from outside the director set, a
    > stale prior-state hash, a revoked certificate."
 
 5. Terminal — **kill an orderer**:

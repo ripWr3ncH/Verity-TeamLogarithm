@@ -45,7 +45,7 @@ const GENESIS_VALUES: Record<GovernedParameter, number> = {
 };
 
 /** Organisations holding a Council seat in this prototype (§4.6). */
-const COUNCIL_MSPS = ['BangladeshBankMSP', 'FRCMSP', 'BankAMSP', 'BankBMSP'];
+export const COUNCIL_MSPS = ['BangladeshBankMSP', 'FRCMSP', 'BankAMSP', 'BankBMSP'];
 
 @Info({ title: 'GovernanceContract', description: 'Council-set parameters and the quorum that changes them' })
 export class GovernanceContract extends Contract {
@@ -172,6 +172,19 @@ export class GovernanceContract extends Contract {
    */
   @Transaction()
   async ActivateProposal(ctx: Context, proposalId: string): Promise<string> {
+    // Executing a passed proposal is itself a Council act.
+    //
+    // The quorum below is the substantive control and it cannot be bypassed
+    // here — but "who may fire the activation once the quorum exists" is a
+    // governance question, and without this gate the answer was anyone holding
+    // any identity on the channel. A parameter change that takes effect is a
+    // change to how every institution is measured; the organisation that
+    // enacts it should be nameable, and now it is recorded in activatedBy.
+    const who = caller(ctx);
+    if (!COUNCIL_MSPS.includes(who.mspId)) {
+      throw refusals.roleRequired('Council member organisation', who.mspId);
+    }
+
     const key = proposalKey(ctx, proposalId);
     const proposal = await getJson<ParameterProposal>(ctx, key);
     if (!proposal) throw refusals.proposalNotFound(proposalId);
@@ -198,6 +211,7 @@ export class GovernanceContract extends Contract {
       ...proposal,
       state: 'ACTIVATED',
       activatedAt: ts,
+      activatedBy: who.mspId,
       activatedByTx: ctx.stub.getTxID(),
     });
 

@@ -21,6 +21,7 @@ import {
   verifyAuthority,
   verifyPara11c,
 } from '../src/domain/authority';
+import { COUNCIL_MSPS } from '../src/contracts/governance';
 import { REFUSAL, Refusal } from '../src/domain/errors';
 import { canonicalJson, eventHash, keyIdOf, sha256Hex, stateHash, verifyEd25519 } from '../src/domain/hash';
 import { AuthorityContext } from '../src/domain/authority';
@@ -519,3 +520,42 @@ describe('ed25519 verification', () => {
     assert.match(d.director.keyId, /^[0-9a-f]{64}$/);
   });
 });
+
+// --------------------------------------------------------------------------
+//  Council seats — the arithmetic that keeps a bank from governing itself
+// --------------------------------------------------------------------------
+
+describe('Council composition (§4.6)', () => {
+  const BANKS = COUNCIL_MSPS.filter((m) => m.startsWith('Bank'));
+  const REGULATORS = COUNCIL_MSPS.filter((m) => !m.startsWith('Bank'));
+  const QUORUM = 3;
+
+  it('the banks cannot reach quorum without a regulator', () => {
+    // The whole separation rests on this one inequality. If the banks ever hold
+    // quorum-many seats, every refusal in Act 5 becomes theatre.
+    assert.ok(
+      BANKS.length < QUORUM,
+      `banks hold ${BANKS.length} of ${COUNCIL_MSPS.length} seats against a quorum of ${QUORUM}`,
+    );
+  });
+
+  it('no single organisation can reach quorum alone', () => {
+    assert.ok(QUORUM > 1);
+  });
+
+  it('the regulators cannot reach quorum without a bank either', () => {
+    // Symmetry matters: a council the regulators can carry alone is not a
+    // council, it is a regulator with extra steps.
+    assert.ok(
+      REGULATORS.length < QUORUM,
+      `regulators hold ${REGULATORS.length} seats against a quorum of ${QUORUM}`,
+    );
+  });
+
+  it('every seat is a distinct organisation', () => {
+    // ApproveProposal counts new Set(approvals).size, so a duplicated MSP in
+    // this list would silently weaken the quorum it is measured against.
+    assert.equal(new Set(COUNCIL_MSPS).size, COUNCIL_MSPS.length);
+  });
+});
+

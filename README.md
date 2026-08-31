@@ -4,7 +4,7 @@
 Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
 
 > **Status: functionally complete and running.** Fabric v3 BFT network, all four modules driven end to end
-> against a real ledger, 8/8 red-team attacks refused, 162 unit tests green. Remaining work is demo assets
+> against a real ledger, 9/9 red-team attacks refused, 169 unit tests green. Remaining work is demo assets
 > and rehearsal — see [What is built, and what is not](#what-is-built-and-what-is-not).
 
 ---
@@ -327,6 +327,41 @@ seconds, BD-4471 still scoring 6.055. Nothing is lost, because nothing there was
 
 ---
 
+## Who would make a bank do this?
+
+The obvious objection, and the one worth answering first: **a bank with a 4.2× reporting gap does not
+volunteer for a system that closes it.** Verity is not adopted bottom-up and does not pretend to be.
+
+**It is a supervisory instrument.** Bangladesh Bank already mandates what banks file, in what format, on what
+calendar — CL-1 through CL-5, EDW uploads, CIB reporting. Verity is the same kind of instruction: commit
+the signatures you are *already* required to obtain, to a ledger the supervisor already co-endorses. The
+authority to require it is the authority that already requires the CL-1.
+
+That shapes what the prototype had to prove, and it is why three specific design choices are not incidental:
+
+| Adoption obstacle | What the build does about it |
+|---|---|
+| "We would have to replace our core system" | The adapter holds **SELECT and nothing else**, enforced by a database grant. Existing CL-1 to CL-5, EDW and CIB filings continue unchanged. Nothing a bank already files is replaced. |
+| "Our competitors would see our book" | Private data collections. Act 3a: the same query returns the payload to Bangladesh Bank and only a hash to the other bank, because the payload was never disseminated to that peer. |
+| "The regulator would become the single point of control" | Endorsement and ordering are separate powers. Bangladesh Bank can refuse an event; it cannot author a bank's record, rewrite a committed one, or open an aggregate alone, and its own reads are logged. |
+
+**A plausible sequencing**, stated as a proposal and not as a finding:
+
+1. **Supervisory pilot** — Bangladesh Bank and two or three banks, one channel, reschedulings only. Runs
+   *beside* the CL-1, and the reconciliation view is the deliverable: what the return omits, quarter by quarter.
+2. **Extension by circular** — the classification events already governed by BRPD 16/2022 and 15/2024
+   become commit-required, the way a new CL-1 field would be.
+3. **Cross-bank exposure** — Module II activates once enough banks are on the ledger for an aggregate to
+   mean anything.
+
+**What this prototype does not establish:** deployment cost per institution, operating burden, the legal
+instrument that would compel participation, or any commitment from a named organisation. No bank or regulator
+has been approached. The institution names in this repository are placeholders and the banner on every page
+says so. Treat the sequencing above as an argument about *where the authority already exists*, not as a plan
+anyone has agreed to.
+
+---
+
 ## What is built, and what is not
 
 Kept current. We would rather state this than be asked.
@@ -334,7 +369,7 @@ Kept current. We would rather state this than be asked.
 | Component | Status |
 |---|---|
 | Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ 21 containers |
-| Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 41 tests |
+| Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 45 tests |
 | Governance — Council parameters, quorum-gated change | ✅ end to end · verified live |
 | Private data collections | ✅ payload vs hash, by identity |
 | Module II — encrypted cross-bank exposure | ✅ end to end · alert at Tk 950 vs 625 crore |
@@ -361,6 +396,21 @@ Kept current. We would rather state this than be asked.
   for it. The chaincode refuses it and says why.
 - **No production HSM.** Officer keys use the same PKCS#11 interface as the FIPS 140-3 Level 3 target, not the
   same assurance level.
+- **The API gateway does not authenticate the caller.** `X-Verity-Identity` names the acting officer and the
+  API trusts it. Anyone who can reach port 4000 can act as any enrolled identity, including a supervisor.
+  Say this before a juror finds it. What it does **not** do is weaken the ledger: the chaincode reads role,
+  seniority and institution from the **certificate** presented by the gateway, never from the request, so a
+  forged header still cannot mint authority a certificate does not carry, and every committed event still
+  names the X.509 identity that signed it. The missing piece is the session layer in front
+  (`services/api/src/server.ts:105`) — mutual TLS or an OIDC token bound to the same X.509, which is a
+  deployment concern rather than a design change.
+- **Officer signatures under para 11(c) are a prototype binding, not cryptography.** `authority.ts` checks
+  that each officer's signature *contains the event-hash prefix* — enough to prove the signature is over
+  **this** event and not a replayed one, and the two-distinct-officers rule is fully enforced. It is not an
+  ed25519 verification, and the same file says so where the check is made. **Director threshold signatures
+  ARE real ed25519**, verified against the registered set. Never blur the two on stage.
+- **Paillier at 1024 bits.** A prototype parameter, below production strength. The homomorphic property and
+  the threshold ceremony are the claims being demonstrated, not the modulus.
 - **All data synthetic.** No real borrower, depositor or institutional data appears anywhere.
 - **λ and E\* are illustrative.** Council-set parameters, to be calibrated against the measured base rate.
   **The EDI is a screening indicator that ranks exposures for supervisory attention, never a finding of
@@ -381,7 +431,7 @@ services/     API gateway, block listener, read model, mock core banking system
 web/          Next.js — bank officer, supervisor and depositor portals
 seed/         Deterministic synthetic portfolios, including the Table 2 exposure
 scripts/      Deployment, seeding, and the module drivers
-redteam/      Eight attacks, eight expected refusals
+redteam/      Nine attacks, nine expected refusals
 bench/        Measured performance, and what was NOT measured
 HANDOFF/      Phase notes — read the newest before picking work up
 ```
@@ -389,8 +439,8 @@ HANDOFF/      Phase notes — read the newest before picking work up
 ## Verify it yourself
 
 ```bash
-npm test --workspaces          # 162 unit tests
-node redteam/run.mjs           # 8 attacks, 8 refusals
+npm run test:all               # 169 unit tests across 6 packages
+node redteam/run.mjs           # 9 attacks, 9 refusals
 bash redteam/orderer-fault.sh  # stop an orderer, commit anyway
 bash redteam/revoke.sh         # revoke a certificate, keep earlier events valid
 ```

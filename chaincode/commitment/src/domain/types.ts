@@ -200,6 +200,8 @@ export interface ParameterProposal {
   approvals: string[];
   state: 'OPEN' | 'ACTIVATED' | 'WITHDRAWN';
   activatedAt?: string;
+  /** The Council organisation that enacted it. Named, never anonymous. */
+  activatedBy?: string;
   activatedByTx?: string;
 }
 
