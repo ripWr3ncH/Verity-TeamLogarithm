@@ -83,6 +83,12 @@ const COPY = {
       'This claim cannot be sold or transferred. No legal authority for a secondary market in resolution claims exists, and Verity does not assert one.',
     free: 'Depositors are never charged.',
     notCommitted: 'No liability commitment has been published yet.',
+    whySign:
+      'A balance enters the bank’s commitment only if you have signed it. The key was generated on this device and never leaves it.',
+    twoAnswers:
+      'Two independent answers to the same question. If they ever disagreed, the bank would be showing you something the ledger does not carry.',
+    ceiling:
+      'Above the Tk 2,00,000 ceiling of the Deposit Protection Act, 2026 — which covers roughly 93% of accounts but a minority of deposit value. This is the balance that Act leaves open.',
   },
   bn: {
     title: 'আপনার আমানত',
@@ -106,6 +112,12 @@ const COPY = {
       'এই দাবি বিক্রি বা হস্তান্তর করা যাবে না। রেজোলিউশন দাবির সেকেন্ডারি বাজারের কোনো আইনি অনুমোদন নেই।',
     free: 'আমানতকারীদের কাছ থেকে কোনো ফি নেওয়া হয় না।',
     notCommitted: 'এখনো কোনো দায় প্রতিশ্রুতি প্রকাশিত হয়নি।',
+    whySign:
+      'আপনি স্বাক্ষর করলেই স্থিতিটি ব্যাংকের প্রতিশ্রুতিতে যুক্ত হয়। কি-টি এই ডিভাইসেই তৈরি হয়েছে এবং কখনো এখান থেকে বের হয় না।',
+    twoAnswers:
+      'একই প্রশ্নের দুটি স্বতন্ত্র উত্তর। যদি কখনো দুটি মিলত না, তাহলে ব্যাংক আপনাকে এমন কিছু দেখাচ্ছে যা লেজারে নেই।',
+    ceiling:
+      'আমানত সুরক্ষা আইন, ২০২৬ এর ২,০০,০০০ টাকা সীমার উপরে — যা প্রায় ৯৩% হিসাব কভার করলেও আমানতের সিংহভাগ নয়। এই স্থিতিটি সেই আইনের বাইরে।',
   },
 } as const;
 
@@ -228,8 +240,7 @@ export default function DepositorPortal(): React.ReactNode {
               </div>
             )}
             <p className="hint">
-              A balance enters the bank&rsquo;s commitment only if you have signed it. The key was
-              generated on this device and never leaves it.
+{t.whySign}
             </p>
           </div>
 
@@ -264,8 +275,7 @@ export default function DepositorPortal(): React.ReactNode {
               </div>
             )}
             <p className="hint">
-              Two independent answers to the same question. If they ever disagreed, the bank would be
-              showing you something the ledger does not carry.
+              {t.twoAnswers}
             </p>
           </div>
 
@@ -285,8 +295,7 @@ export default function DepositorPortal(): React.ReactNode {
 
             {session.priorityClass !== 'PROTECTED' && (
               <p className="hint">
-                Above the Tk 2,00,000 ceiling of the Deposit Protection Act, 2026 — which covers roughly
-                93% of accounts but a minority of deposit value. This is the balance that Act leaves open.
+                {t.ceiling}
               </p>
             )}
 

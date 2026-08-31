@@ -54,17 +54,22 @@ export function ReschedulingTimeline({ events }: Props): React.ReactNode {
   }));
 
   const W = 720;
-  const H = 132;
-  const padX = 46;
-  const baseY = 84;
+  const H = 162;
+  const padX = 56;
+  const baseY = 112;
   const step = cols.length > 1 ? (W - padX * 2) / (cols.length - 1) : 0;
   const x = (i: number) => padX + i * step;
 
   // Vertical offset encodes proximity: the closer to the reference date, the
-  // higher the dot sits above the axis. 0 days would sit at the top.
+  // higher the dot sits above the axis.
+  //
+  // The scale tops out at NEAR_DAYS rather than 90, so the shaded band actually
+  // CONTAINS every clustered marker. A band captioned "within 30 days" that the
+  // 12-day dot floats above says the opposite of what it means.
+  const TOP = 34;
   const y = (days: number) => {
-    const clamped = Math.max(0, Math.min(days, 90));
-    return baseY - 46 * (1 - clamped / 90);
+    const clamped = Math.max(0, Math.min(days, NEAR_DAYS * 2));
+    return TOP + (baseY - TOP) * (clamped / (NEAR_DAYS * 2));
   };
 
   const nearCount = cols.filter((c) => c.near).length;
@@ -87,14 +92,29 @@ export function ReschedulingTimeline({ events }: Props): React.ReactNode {
         >
           {/* The band inside which an event counts as clustered near period end. */}
           <rect
-            x={padX - 22}
-            y={y(NEAR_DAYS)}
-            width={W - padX * 2 + 44}
-            height={baseY - y(NEAR_DAYS)}
-            fill="var(--amber-wash, rgba(138,97,0,.07))"
+            x={padX - 30}
+            y={TOP - 12}
+            width={W - padX * 2 + 60}
+            height={baseY - TOP + 12}
+            fill="rgba(199,56,43,.10)"
           />
-          <text x={padX - 22} y={y(NEAR_DAYS) - 6} fontSize="11" fill="var(--amber, #8a6100)">
-            within {NEAR_DAYS} days of quarter-end
+          <line
+            x1={padX - 30}
+            y1={y(NEAR_DAYS)}
+            x2={W - padX + 30}
+            y2={y(NEAR_DAYS)}
+            stroke="rgba(199,56,43,.35)"
+            strokeWidth="1"
+            strokeDasharray="4 3"
+          />
+          <text
+            x={padX - 30}
+            y={TOP - 18}
+            fontSize="10.5"
+            fill="var(--coral, #c7382b)"
+            fontWeight="600"
+          >
+            within {NEAR_DAYS} days of the reference date
           </text>
 
           {/* The statutory calendar. */}
@@ -129,7 +149,7 @@ export function ReschedulingTimeline({ events }: Props): React.ReactNode {
                 {/* Drop line from the axis to the event. */}
                 <line x1={cx} y1={baseY} x2={cx} y2={cy} stroke={colour} strokeWidth="1.5" />
                 <circle cx={cx} cy={cy} r="7" fill={colour} />
-                <text x={cx} y={cy - 12} fontSize="11" textAnchor="middle" fill={colour} fontWeight="600">
+                <text x={cx} y={cy - 14} fontSize="11.5" textAnchor="middle" fill={colour} fontWeight="700">
                   RS-{c.rs}
                 </text>
                 <text x={cx} y={cy + 4} fontSize="9" textAnchor="middle" fill="#fff" fontWeight="700">
@@ -139,7 +159,13 @@ export function ReschedulingTimeline({ events }: Props): React.ReactNode {
             );
           })}
 
-          <text x={padX - 22} y={baseY + 38} fontSize="10.5" fill="var(--ink-2, #555)">
+          <text
+            x={W / 2}
+            y={baseY + 40}
+            fontSize="10.5"
+            textAnchor="middle"
+            fill="var(--ink-3, #777)"
+          >
             statutory classification reference dates
           </text>
         </svg>

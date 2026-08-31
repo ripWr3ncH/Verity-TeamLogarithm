@@ -182,45 +182,7 @@ h3 { font-size: .93rem; font-weight: 700; letter-spacing: -.01em; margin: 0 0 .5
 .grid-side { display: grid; grid-template-columns: minmax(0,1fr) 23rem; gap: 1.1rem; align-items: start; }
 @media (max-width: 1040px) { .grid-2, .grid-3, .grid-side { grid-template-columns: 1fr; } }
 
-/* ---------------------------------------------------------------------------
-   Phone widths.
 
-   The depositor portal is the one screen a member of the public would actually
-   open, and it is demoed at 390px. Two things break there without this block.
-
-   `.receipt` is a `max-content 1fr` grid, so a long label like RECOMPUTED IN
-   THIS BROWSER claims almost the whole row and leaves the value a few
-   characters wide. Combined with `word-break: break-all` on the value, a
-   64-character root hash then wraps ONE CHARACTER PER LINE — technically
-   correct, unreadable, and it is what the demo screenshots caught.
-
-   Stacking the pairs gives the value the full width back. The hash still wraps,
-   because it must, but across the screen rather than down it.
-   --------------------------------------------------------------------------- */
-@media (max-width: 560px) {
-  .receipt { grid-template-columns: 1fr; gap: .1rem; }
-  .receipt dt { padding-top: .5rem; }
-  .receipt dd:not(:last-child) { padding-bottom: .25rem; }
-
-  /* Stat tiles sit side by side on a dashboard and stack on a phone. */
-  .stat .value { font-size: 1.5rem; }
-
-  /* The identity bar wraps already; keep it from crowding the page title. */
-  .identity { gap: .45rem; }
-
-  /* Tables inside a card get their own scroll rather than widening the page. */
-  .card { padding: .95rem; }
-
-  /* Reclaim the desktop side padding; on a phone it is most of the screen. */
-  main { padding: 1.1rem .8rem 3rem; }
-}
-
-/* A single over-wide element should scroll INSIDE its own container, never
-   drag the whole page sideways -- horizontal page scroll reads as broken, and
-   on a recorded demo it is the first thing a viewer notices. Anything wide
-   (tables, the timeline SVG) already sits in a .scroller; this is the guard for
-   whatever gets added later without one. */
-html, body { max-width: 100%; overflow-x: hidden; }
 
 /* ==========================================================================
    Cards
@@ -468,3 +430,49 @@ input[readonly] {
 .row { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
 .divider { border: 0; border-top: 1px solid var(--rule-soft); margin: 1.15rem 0; }
+
+/* ---------------------------------------------------------------------------
+   Phone widths. KEEP THIS BLOCK LAST IN THE FILE.
+
+   These rules override base ones at the SAME specificity (`.receipt` beats
+   `.receipt`), so source order is what decides. Sitting above the definitions
+   they override, they lose silently — the media query matches, the rule is
+   live in devtools, and the layout does not change. That is exactly how the
+   root-hash wrap survived a first attempt at this fix.
+
+   The depositor portal is the one screen a member of the public would actually
+   open, and it is demoed at 390px. Two things break there without this block.
+
+   `.receipt` is a `max-content 1fr` grid, so a long label like RECOMPUTED IN
+   THIS BROWSER claims almost the whole row and leaves the value a few
+   characters wide. Combined with `word-break: break-all` on the value, a
+   64-character root hash then wraps ONE CHARACTER PER LINE — technically
+   correct, unreadable, and it is what the demo screenshots caught.
+
+   Stacking the pairs gives the value the full width back. The hash still wraps,
+   because it must, but across the screen rather than down it.
+   --------------------------------------------------------------------------- */
+@media (max-width: 560px) {
+  .receipt { grid-template-columns: 1fr; gap: .1rem; }
+  .receipt dt { padding-top: .5rem; }
+  .receipt dd:not(:last-child) { padding-bottom: .25rem; }
+
+  /* Stat tiles sit side by side on a dashboard and stack on a phone. */
+  .stat .value { font-size: 1.5rem; }
+
+  /* The identity bar wraps already; keep it from crowding the page title. */
+  .identity { gap: .45rem; }
+
+  /* Tables inside a card get their own scroll rather than widening the page. */
+  .card { padding: .95rem; }
+
+  /* Reclaim the desktop side padding; on a phone it is most of the screen. */
+  main { padding: 1.1rem .8rem 3rem; }
+}
+
+/* A single over-wide element should scroll INSIDE its own container, never
+   drag the whole page sideways -- horizontal page scroll reads as broken, and
+   on a recorded demo it is the first thing a viewer notices. Anything wide
+   (tables, the timeline SVG) already sits in a .scroller; this is the guard for
+   whatever gets added later without one. */
+html, body { max-width: 100%; overflow-x: hidden; }
