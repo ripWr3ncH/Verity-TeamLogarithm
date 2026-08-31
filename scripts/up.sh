@@ -37,6 +37,22 @@ command -v docker >/dev/null || die "docker not found"
 docker info >/dev/null 2>&1 || die "the Docker daemon is not running — start Docker Desktop and wait for the whale icon to settle"
 [[ -x network/bin/peer ]] || die "Fabric binaries missing — run: cd network && ./bootstrap.sh"
 
+command -v node >/dev/null || die "node not found — on WSL2 run: source network/scripts/wsl-env.sh"
+NODE_MAJOR="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
+[[ "$NODE_MAJOR" -ge 20 ]] || die "Node 20+ required, found $(node -v 2>/dev/null || echo none)"
+
+# Install once, here, rather than leaving it to whichever script needs it first.
+#
+# npm workspaces hoist every dependency to the ROOT node_modules, so a clean
+# clone has nothing anywhere and the first failure surfaces several steps later
+# as `tsc: not found` from inside `npm --prefix seed run generate` — which reads
+# like a broken seed script rather than a missing install.
+if [[ ! -d node_modules ]]; then
+  phase "0/6  Installing workspace dependencies (first run only)"
+  npm install --no-audit --no-fund || die "npm install failed"
+  ok "dependencies installed"
+fi
+
 # ---------------------------------------------------------------------------
 phase "1/6  Fabric network — 5 BFT orderers, 4 peers"
 ( cd network && ./network.sh up )

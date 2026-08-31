@@ -66,8 +66,14 @@ and CIB reporting continue unchanged — nothing a bank already files is replace
 
 ## Run it
 
-Requires **Docker**, **Node 20+**, and **WSL2** on Windows. First run takes 15–30 minutes, almost all of it
-downloading Fabric images.
+Requires **Docker**, **Node 20+**, and **WSL2** on Windows. First run takes 30–45 minutes, almost all of it
+downloading Fabric images; about three minutes after that.
+
+**On Windows, work inside WSL2, not PowerShell** — the Fabric binaries are Linux executables. Docker
+Desktop's WSL integration must be enabled for your distro.
+
+➤ **[SETUP.md](SETUP.md) is the full guide**, including every failure we actually hit and what it means.
+Read it if anything below does not go to plan.
 
 ```bash
 git clone https://github.com/ripWr3ncH/Verity-TeamLogarithm
@@ -89,7 +95,15 @@ node scripts/run-exposure-ceremony.mjs    # Module II end to end
 node scripts/run-liability-commitment.mjs # Modules III and IV end to end
 ```
 
-Open <http://localhost:3000>. Stop with `./scripts/down.sh`.
+Open <http://localhost:3000>. Stop with `./scripts/down.sh` — which keeps the ledger, so `up.sh` brings it
+back with the data intact.
+
+Check it worked:
+
+```bash
+npm run test:all       # 170 tests, 0 failures
+node redteam/run.mjs   # 10 attacks, 10 refusals — drives the live ledger end to end
+```
 
 ---
 
@@ -442,6 +456,7 @@ scripts/      Deployment, seeding, and the module drivers
 redteam/      Ten attacks, ten expected refusals
 bench/        Measured performance, and what was NOT measured
 HANDOFF/      Phase notes — read the newest before picking work up
+SETUP.md      Full install guide, and every failure mode we hit
 ```
 
 ## Verify it yourself
