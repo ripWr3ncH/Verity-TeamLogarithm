@@ -49,7 +49,7 @@ node scripts/run-liability-commitment.mjs
 - [ ] `curl -s localhost:4000/health` returns `{"status":"ok","synthetic":true}`
 - [ ] `curl -s localhost:4000/queue?limit=1 -H 'X-Verity-Identity: supervisor-1'` shows a total near 830
 - [ ] `docker ps --filter label=service=hyperledger-fabric -q | wc -l` → 17
-- [ ] `node redteam/run.mjs` → 9/9
+- [ ] `node redteam/run.mjs` → 10/10
 - [ ] Four browser tabs open: `/`, `/bank`, `/supervisor`, `/depositor`
 - [ ] Zoom 125–150%, notifications off, mains power
 - [ ] Backup video cued in a fifth tab, muted
@@ -267,7 +267,7 @@ node scripts/run-exposure-ceremony.mjs
    ```bash
    node redteam/run.mjs
    ```
-   > "Nine attacks. Nine refusals. Equal seniority approving, a signature from outside the director set, a
+   > "Ten attacks. Ten refusals. Equal seniority approving, a signature from outside the director set, a
    > stale prior-state hash, a revoked certificate."
 
 5. Terminal — **kill an orderer**:

@@ -612,6 +612,30 @@ app.post<{ Params: { id: string } }>('/governance/proposals/:id/approve', async 
 });
 
 /** Refuses with GOVERNANCE_QUORUM_REQUIRED until distinct Council orgs sign off. */
+/**
+ * The proposer takes its own proposal off the table.
+ *
+ * Only the proposing organisation, and only while OPEN. Without this a
+ * proposal had exactly one exit — OPEN until activated, however long that
+ * took, under whatever quorum happened to exist by then.
+ */
+app.post<{ Params: { id: string }; Body: { reason?: string } }>(
+  '/governance/proposals/:id/withdraw',
+  async (request, reply) => {
+    try {
+      return await submit(
+        actingUser(request),
+        'commitment',
+        'GovernanceContract',
+        'WithdrawProposal',
+        [request.params.id, request.body?.reason ?? 'withdrawn by the proposer'],
+      );
+    } catch (error) {
+      return handle(reply, error);
+    }
+  },
+);
+
 app.post<{ Params: { id: string } }>('/governance/proposals/:id/activate', async (request, reply) => {
   try {
     return await submit(actingUser(request), 'commitment', 'GovernanceContract', 'ActivateProposal', [

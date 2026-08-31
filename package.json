@@ -25,7 +25,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:chaincode": "npm --prefix chaincode/commitment test && npm --prefix chaincode/exposure test && npm --prefix chaincode/claims test",
     "install:chaincode": "npm --prefix chaincode/commitment install && npm --prefix chaincode/exposure install && npm --prefix chaincode/claims install",
-    "test:all": "npm test && for p in chaincode/commitment chaincode/exposure chaincode/claims; do npm --prefix $p test || exit 1; done"
+    "test:all": "npm test --workspaces --if-present && npm --prefix chaincode/commitment test && npm --prefix chaincode/exposure test && npm --prefix chaincode/claims test"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

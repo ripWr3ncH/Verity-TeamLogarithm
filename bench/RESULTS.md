@@ -106,7 +106,7 @@ extrapolated from 264 blocks — the honest thing to say is that it is not yet k
 
 ## 7. Red team
 
-`node redteam/run.mjs` — **9 of 9 attacks refused.**
+`node redteam/run.mjs` — **10 of 10 attacks refused.**
 
 | # | Attack | Refusal |
 |---|---|---|

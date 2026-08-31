@@ -203,6 +203,10 @@ export interface ParameterProposal {
   /** The Council organisation that enacted it. Named, never anonymous. */
   activatedBy?: string;
   activatedByTx?: string;
+  withdrawnAt?: string;
+  /** The proposing organisation. Only it may withdraw. */
+  withdrawnBy?: string;
+  withdrawnReason?: string;
 }
 
 // --------------------------------------------------------------------------

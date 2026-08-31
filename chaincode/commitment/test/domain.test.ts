@@ -552,6 +552,20 @@ describe('Council composition (§4.6)', () => {
     );
   });
 
+  it('a non-Council organisation is outside every governance entry point', () => {
+    // All three Council functions gate on the same list. ProposeParameterChange
+    // matters as much as the other two because it seeds `approvals` with the
+    // proposer's own MSP: ungated, an outsider could open a proposal and place
+    // itself into the set that ApproveProposal counts, giving it one free vote
+    // toward a quorum it holds no seat in.
+    //
+    // On this channel every peer MSP is a Council member, so nothing can
+    // currently reach these and fail. That is channel membership, not the
+    // contract, and it stops being true when a fifth organisation joins.
+    const outsider = 'SomeOtherBankMSP';
+    assert.ok(!COUNCIL_MSPS.includes(outsider));
+  });
+
   it('every seat is a distinct organisation', () => {
     // ApproveProposal counts new Set(approvals).size, so a duplicated MSP in
     // this list would silently weaken the quorum it is measured against.

@@ -2,7 +2,7 @@
 /**
  * VERITY — the red-team suite.
  *
- * Nine attacks, nine expected refusals. Runnable in front of judges.
+ * Ten attacks, ten expected refusals. Runnable in front of judges.
  *
  * Offering to attack your own system is a strong move: it converts the Privacy
  * and Governance criteria from claims into demonstrations, and every message
@@ -351,6 +351,48 @@ if (run(9)) {
     for (const d of puppets) {
       await call('/board/revoke', 'supervisor-1', 'POST', { mspId: 'BankAMSP', keyId: d.keyId });
     }
+  }
+}
+
+// -- 10 ---------------------------------------------------------------------
+if (run(10)) {
+  // ========================================================================
+  //  ONE COUNCIL MEMBER CANCELS ANOTHER'S PROPOSAL.
+  //
+  //  Withdrawal has to exist -- without it a proposal has one exit, OPEN until
+  //  activated, and can be enacted months later by a quorum that has since
+  //  changed its mind. But a Council where each member can retract the others'
+  //  proposals is not a council; it is a second veto wearing a different name.
+  //
+  //  So: BankA opens a proposal, and Bangladesh Bank -- a Council member in
+  //  good standing, with every right to APPROVE or REFUSE it -- tries to take
+  //  it off the table instead.
+  // ========================================================================
+  const pid = `RT10-${Math.floor(Math.random() * 99999)}`;
+  const opened = await call('/governance/proposals', 'officer-rahim', 'POST', {
+    proposalId: pid,
+    parameter: 'eStar',
+    proposedValue: 1.4,
+    rationale: 'red-team: proposal raised by BankA',
+  });
+
+  if (opened.status >= 400) {
+    record(10, "Council member withdraws ANOTHER org's proposal", 'ROLE_REQUIRED',
+      'COULD_NOT_OPEN', opened.body?.message?.slice(0, 140));
+  } else {
+    await new Promise((s) => setTimeout(s, 3000));
+    want(10, "Council member withdraws ANOTHER org's proposal", 'ROLE_REQUIRED',
+      await call(`/governance/proposals/${pid}/withdraw`, 'supervisor-1', 'POST',
+        { reason: 'red-team: not my proposal to withdraw' }));
+
+    // The other half: the PROPOSER can withdraw its own.
+    const own = await call(`/governance/proposals/${pid}/withdraw`, 'officer-rahim', 'POST',
+      { reason: 'red-team: withdrawn by the organisation that raised it' });
+    console.log(
+      `  ${C.dim}  and the proposing organisation withdraws its own ` +
+        `${own.status < 400 && !own.body?.refused ? 'successfully' : 'NOT - investigate'}${C.off}
+`,
+    );
   }
 }
 

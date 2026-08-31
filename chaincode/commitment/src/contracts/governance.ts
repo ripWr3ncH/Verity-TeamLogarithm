@@ -93,8 +93,20 @@ export class GovernanceContract extends Contract {
   // ======================================================================
 
   /**
-   * Anyone on the Council may PROPOSE. Proposing is not changing — that
+   * Anyone ON THE COUNCIL may propose. Proposing is not changing — that
    * distinction is the entire mechanism.
+   *
+   * The gate is load-bearing because of the line that seeds `approvals` with
+   * the proposer's own MSP. Without it, a non-Council organisation could open a
+   * proposal and place itself into the approval set that ApproveProposal later
+   * counts with `new Set(approvals).size` — one free vote toward a quorum it
+   * holds no seat in.
+   *
+   * On this channel every peer MSP happens to be a Council member, so there is
+   * currently no identity that can reach this and fail. That is a property of
+   * channel membership, not of the contract, and it stops being true the moment
+   * a fifth organisation joins — which §4.6's own roadmap contemplates. A
+   * control that depends on nobody else being present is not a control.
    */
   @Transaction()
   async ProposeParameterChange(
@@ -105,6 +117,10 @@ export class GovernanceContract extends Contract {
     rationale: string,
   ): Promise<string> {
     const who = caller(ctx);
+    if (!COUNCIL_MSPS.includes(who.mspId)) {
+      throw refusals.roleRequired('Council member organisation', who.mspId);
+    }
+
     const parameter = asParameter(name);
 
     const current = await getJson<Parameter>(ctx, paramKey(ctx, parameter));
@@ -160,6 +176,54 @@ export class GovernanceContract extends Contract {
       quorumRequired: quorum,
       approvedBy: proposal.approvals,
     });
+  }
+
+  /**
+   * The proposer withdraws its own proposal.
+   *
+   * `WITHDRAWN` was in the state union from the beginning with no code path
+   * that could ever set it — a type promising a capability the contract did
+   * not have. Either the state was wrong or the contract was incomplete, and
+   * the contract was.
+   *
+   * It matters beyond tidiness. Proposals had exactly one exit: OPEN until
+   * activated, forever. A proposal opened under one set of circumstances could
+   * be activated months later by a quorum that had since changed its mind,
+   * and the organisation that raised it had no way to take it off the table.
+   *
+   * Only the PROPOSING organisation may withdraw, and only while OPEN. A
+   * Council that could withdraw each other's proposals would just be a second
+   * veto wearing a different name.
+   */
+  @Transaction()
+  async WithdrawProposal(ctx: Context, proposalId: string, reason: string): Promise<string> {
+    const who = caller(ctx);
+    const key = proposalKey(ctx, proposalId);
+    const proposal = await getJson<ParameterProposal>(ctx, key);
+    if (!proposal) throw refusals.proposalNotFound(proposalId);
+    if (proposal.state !== 'OPEN') throw refusals.proposalClosed(proposalId, proposal.state);
+
+    if (proposal.proposedByMsp !== who.mspId) {
+      throw refusals.roleRequired(
+        `the proposing organisation (${proposal.proposedByMsp})`,
+        who.mspId,
+      );
+    }
+
+    const ts = txTimestamp(ctx);
+    const withdrawn: ParameterProposal = {
+      ...proposal,
+      state: 'WITHDRAWN',
+      withdrawnAt: ts,
+      withdrawnBy: who.mspId,
+      withdrawnReason: reason,
+    };
+    await putJson(ctx, key, withdrawn);
+    ctx.stub.setEvent(
+      'ProposalWithdrawn',
+      Buffer.from(JSON.stringify({ proposalId, withdrawnBy: who.mspId })),
+    );
+    return JSON.stringify(withdrawn);
   }
 
   /**

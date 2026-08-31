@@ -4,7 +4,7 @@
 Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
 
 > **Status: functionally complete and running.** Fabric v3 BFT network, all four modules driven end to end
-> against a real ledger, 9/9 red-team attacks refused, 169 unit tests green. Remaining work is demo assets
+> against a real ledger, 10/10 red-team attacks refused, 170 unit tests green. Remaining work is demo assets
 > and rehearsal — see [What is built, and what is not](#what-is-built-and-what-is-not).
 
 ---
@@ -369,8 +369,8 @@ Kept current. We would rather state this than be asked.
 | Component | Status |
 |---|---|
 | Fabric v3 BFT network — 5 ordering orgs, 4 peer orgs, 3 channels | ✅ 21 containers |
-| Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 45 tests |
-| Governance — Council parameters, quorum-gated change | ✅ end to end · verified live |
+| Module I — lifecycle, k-of-n authority, statutory calendar | ✅ end to end · 46 tests |
+| Governance — Council parameters, quorum-gated change, proposer-only withdrawal | ✅ end to end · verified live |
 | Private data collections | ✅ payload vs hash, by identity |
 | Module II — encrypted cross-bank exposure | ✅ end to end · alert at Tk 950 vs 625 crore |
 | Modules III and IV — signed leaves, claim tokens | ✅ end to end · 250 depositors, 8-step proof |
@@ -381,7 +381,7 @@ Kept current. We would rather state this than be asked.
 | Mock CBS, read-only adapter, CL-1 reconciliation | ✅ omission check live |
 | Bank officer · supervisor · depositor portals | ✅ containerised, started by `up.sh` |
 | Rebuild from block 0 | ✅ exposed as a control |
-| Red-team suite | ✅ **9/9 attacks refused**, verified live |
+| Red-team suite | ✅ **10/10 attacks refused**, verified live |
 | Measured performance | ✅ 20.4 tx/s · [bench/RESULTS.md](bench/RESULTS.md) |
 | **Browser walk-through by a human** | ⏳ **not yet done** |
 | Demo runbook and video scripts | ✅ [DEMO.md](DEMO.md) · [VIDEO.md](VIDEO.md) |
@@ -416,6 +416,14 @@ Kept current. We would rather state this than be asked.
   **The EDI is a screening indicator that ranks exposures for supervisory attention, never a finding of
   misconduct.**
 
+**Governance limits that remain, stated plainly.** Council membership is a constant in the chaincode
+(`COUNCIL_MSPS`), so adding, removing or rotating a seat needs a code deploy and a new chaincode sequence —
+there is no on-chain mechanism for it, and the "rotating bank seats" in the orderer design are a topology
+choice rather than an implemented rotation. There is no dispute-resolution path: a bank that contests an EDI
+score or a refusal has no appeal workflow beyond the MD/CEO-gated `CORRECTION` event. Proposals now support
+withdrawal by the proposer, but there is still no expiry — an OPEN proposal can be activated later under a
+quorum that has since changed its mind.
+
 Not measured, and listed so nobody fills the gap with an assumption: ledger growth per million events, f = 2
 tolerance, p95 latency distribution, distributed topology, revocation latency.
 
@@ -431,7 +439,7 @@ services/     API gateway, block listener, read model, mock core banking system
 web/          Next.js — bank officer, supervisor and depositor portals
 seed/         Deterministic synthetic portfolios, including the Table 2 exposure
 scripts/      Deployment, seeding, and the module drivers
-redteam/      Nine attacks, nine expected refusals
+redteam/      Ten attacks, ten expected refusals
 bench/        Measured performance, and what was NOT measured
 HANDOFF/      Phase notes — read the newest before picking work up
 ```
@@ -439,8 +447,8 @@ HANDOFF/      Phase notes — read the newest before picking work up
 ## Verify it yourself
 
 ```bash
-npm run test:all               # 169 unit tests across 6 packages
-node redteam/run.mjs           # 9 attacks, 9 refusals
+npm run test:all               # 170 unit tests across 6 packages
+node redteam/run.mjs           # 10 attacks, 10 refusals
 bash redteam/orderer-fault.sh  # stop an orderer, commit anyway
 bash redteam/revoke.sh         # revoke a certificate, keep earlier events valid
 ```
