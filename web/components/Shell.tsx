@@ -114,7 +114,34 @@ export function Shell({ children }: { children: ReactNode }): ReactNode {
           placeholders; no organisation has committed to participate.
         </div>
 
-        {portal && (
+        {/*
+          The depositor holds NO consortium identity, and that is the point of
+          Module IV rather than an omission. They have no X.509 from a bank CA,
+          no MSP and no role attribute — the inclusion proof is recomputed in
+          their own browser and checked against the committed root, which is
+          exactly why it is worth anything to someone the bank has no reason to
+          favour.
+
+          A switcher here was offering a choice that does not exist, and the
+          certificate chip beside it named an MSP and an officer role that a
+          depositor could never hold. Saying so plainly turns a dead control
+          into the argument it was hiding.
+        */}
+        {portal?.href === '/depositor' && (
+          <div className="identity-bar">
+            <div className="identity">
+              <label style={{ margin: 0 }}>Acting as</label>
+              <span className="cert">
+                <b>a depositor</b> · no consortium identity
+              </span>
+              <span className="hint" style={{ margin: 0 }}>
+                verification runs on this device — nothing here is signed by the bank or by us
+              </span>
+            </div>
+          </div>
+        )}
+
+        {portal && portal.href !== '/depositor' && (
           <div className="identity-bar">
             <div className="identity">
               <label htmlFor="identity" style={{ margin: 0 }}>

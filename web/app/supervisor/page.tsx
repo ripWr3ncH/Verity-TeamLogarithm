@@ -26,6 +26,7 @@ import { RefusalPanel } from '@/components/Outcome';
 import { BaseRateChart, SupervisoryQueue } from '@/components/Queue';
 import { ReconciliationPanel } from '@/components/Reconciliation';
 import { RebuildPanel } from '@/components/Rebuild';
+import { ReschedulingTimeline } from '@/components/Timeline';
 import { useIdentity } from '@/components/Shell';
 import {
   api,
@@ -327,6 +328,11 @@ export default function SupervisorPortal(): React.ReactNode {
               </p>
             </div>
           </div>
+
+          {/* The same reschedulings the table above lists, drawn against the
+              statutory calendar. Placed immediately after the comparison so the
+              numbers and the picture read as one argument. */}
+          <ReschedulingTimeline events={trail} />
 
           {/* ---------- authority trail ---------- */}
           <div className="card" style={{ marginTop: '1rem' }}>
