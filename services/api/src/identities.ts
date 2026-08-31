@@ -91,10 +91,21 @@ export const DEMO_USERS: DemoUser[] = [
   { id: 'md-bankb', org: 'bankb', role: 'mdceo', seniority: 5, displayName: 'Managing Director', portal: 'bank' },
   { id: 'adapter-bankb', org: 'bankb', role: 'adapter', seniority: 1, displayName: 'CBS adapter', portal: 'none' },
 
-  { id: 'supervisor-1', org: 'bb', role: 'supervisor', seniority: 5, displayName: 'Supervisory officer', portal: 'supervisor' },
-  { id: 'supervisor-2', org: 'bb', role: 'supervisor', seniority: 5, displayName: 'Supervisory officer', portal: 'supervisor' },
+  // Two DIFFERENT people, each with their own certificate and private key.
+  //
+  // They shared a display name until a dropdown showed the same label twice,
+  // which is a bad look and a worse claim: §4.7 logs every supervisory read by
+  // identity, so "who opened this exposure" is a question the ledger answers
+  // by name. Two indistinguishable entries in the switcher quietly undercut
+  // the control the access log exists to provide.
+  //
+  // supervisor-2 is also the block listener's identity (VERITY_LISTENER_IDENTITY),
+  // so the access log carries a human reading a file and a service following
+  // the chain. Naming them apart is what makes that legible.
+  { id: 'supervisor-1', org: 'bb', role: 'supervisor', seniority: 5, displayName: 'Rehana Karim', portal: 'supervisor' },
+  { id: 'supervisor-2', org: 'bb', role: 'supervisor', seniority: 5, displayName: 'Imran Chowdhury', portal: 'supervisor' },
 
-  { id: 'frc-analyst', org: 'frc', role: 'frc', seniority: 4, displayName: 'FRC analyst', portal: 'supervisor' },
+  { id: 'frc-analyst', org: 'frc', role: 'frc', seniority: 4, displayName: 'Nusrat Jahan', portal: 'supervisor' },
 ];
 
 /**
