@@ -472,14 +472,16 @@ bash redteam/revoke.sh         # revoke a certificate, keep earlier events valid
 
 ## Team
 
-| Member | Responsibility |
-|---|---|
-| *[name]* | Architecture, consensus design — Fabric network, BFT, benchmark |
-| *[name]* | Cryptography — authority evidence, Paillier, Merkle sum tree |
-| *[name]* | Smart contracts and data model |
-| *[name]* | Banking regulation and domain research |
-| *[name]* | Market analysis and business model |
-| *[name]* | Verification interface design and documentation |
+**Team Logarithm** — Khulna University of Engineering & Technology
+
+| Member | Role | In this repository |
+|---|---|---|
+| **Oitijya Islam Auvro** | Team Lead | Architecture and consensus design — the Fabric v3 BFT network, five ordering organisations, channel topology, benchmark |
+| **Dewan Salman Rahman Zisan** | Security & Privacy Developer | Private data collections, Paillier and the threshold ceremony, Merkle sum tree, CRL revocation, the red-team suite |
+| **Tawhidul Hasan** | Blockchain Developer | Chaincode — lifecycle authority, the k-of-n Board threshold, Council governance, the refusal catalogue |
+| **Sarwad Hasan Siddiqui** | Research & Business Lead | Banking regulation — BRPD 16/2022 and 15/2024, the statutory calendar, EDI calibration against the measured base rate, adoption path |
+| **Md. Nafiz Ahmed** | Backend Developer | API gateway, block listener, the read-model projection and rebuild, the mock core banking system and its read-only adapter |
+| **Md. Saif Ahmed Shejan** | Frontend Developer | The three portals — bank officer, supervisor and depositor — including the depositor's in-browser proof recomputation |
 
 ## Licence
 
