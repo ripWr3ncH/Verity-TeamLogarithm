@@ -187,6 +187,7 @@ export default function BankPortal(): React.ReactNode {
             <h3>Open an exposure</h3>
             <div className="row">
               <input
+                aria-label="Commitment id to open"
                 value={loanId}
                 onChange={(e) => setLoanId(e.target.value.trim())}
                 placeholder="commitment id, e.g. BD-4471"

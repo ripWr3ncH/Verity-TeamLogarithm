@@ -205,6 +205,7 @@ export default function SupervisorPortal(): React.ReactNode {
       <div className="card">
         <div className="row">
           <input
+            aria-label="Commitment id to open"
             value={loanId}
             onChange={(e) => setLoanId(e.target.value.trim())}
             placeholder="commitment id, e.g. BD-4471"
