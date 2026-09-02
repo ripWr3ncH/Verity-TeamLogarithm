@@ -62,7 +62,7 @@ function ediTrail(events: LifecycleEvent[], lambda: number): TrailPoint[] {
 }
 
 export default function SupervisorPortal(): React.ReactNode {
-  const { current } = useIdentity();
+  const { current, identities } = useIdentity();
   const identity = current?.id;
 
   const [params, setParams] = useState<Parameter[]>([]);
@@ -76,7 +76,23 @@ export default function SupervisorPortal(): React.ReactNode {
 
   const [proposalId, setProposalId] = useState('');
   const [proposedEStar, setProposedEStar] = useState('1.117');
+  const [governanceActorId, setGovernanceActorId] = useState('');
   const [govOutcome, setGovOutcome] = useState<Outcome<unknown>>();
+
+  // Act 5 must be able to demonstrate that a BANK proposes a change and that
+  // the other Council organisations approve it. The page-wide switcher stays
+  // scoped to supervisory work, so this narrow selector supplies one named
+  // representative of each Council MSP just for governance transactions.
+  const councilActors = Array.from(
+    new Map(
+      identities
+        .filter((candidate) =>
+          ['BankAMSP', 'BankBMSP', 'BangladeshBankMSP', 'FRCMSP'].includes(candidate.mspId),
+        )
+        .map((candidate) => [candidate.mspId, candidate]),
+    ).values(),
+  );
+  const governanceActor = councilActors.find((candidate) => candidate.id === governanceActorId);
 
   const lambda = params.find((p) => p.name === 'lambda')?.value ?? 0.03;
   const eStar = params.find((p) => p.name === 'eStar')?.value ?? 0.5;
@@ -94,6 +110,12 @@ export default function SupervisorPortal(): React.ReactNode {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (governanceActorId || councilActors.length === 0) return;
+    const currentCouncilActor = councilActors.find((candidate) => candidate.id === identity);
+    setGovernanceActorId((currentCouncilActor ?? councilActors[0])!.id);
+  }, [councilActors, governanceActorId, identity]);
 
   /**
    * The supervisory read is a SUBMIT transaction, because it writes an access
@@ -133,7 +155,7 @@ export default function SupervisorPortal(): React.ReactNode {
   const score = points.length > 0 ? points[points.length - 1]!.cumulative : 0;
 
   const runGovernance = async (step: 'propose' | 'approve' | 'activate'): Promise<void> => {
-    if (!identity) return;
+    if (!governanceActor) return;
     setBusy(true);
     setGovOutcome(undefined);
     try {
@@ -142,15 +164,15 @@ export default function SupervisorPortal(): React.ReactNode {
 
       const result =
         step === 'propose'
-          ? await api.propose(identity, {
+          ? await api.propose(governanceActor.id, {
               proposalId: id,
               parameter: 'eStar',
               proposedValue: Number(proposedEStar),
               rationale: '95th percentile of the measured base rate',
             })
           : step === 'approve'
-            ? await api.approve(identity, id)
-            : await api.activate(identity, id);
+            ? await api.approve(governanceActor.id, id)
+            : await api.activate(governanceActor.id, id);
 
       setGovOutcome(result);
       await refresh();
@@ -392,15 +414,33 @@ export default function SupervisorPortal(): React.ReactNode {
           <label htmlFor="pid">Proposal id</label>
           <input id="pid" value={proposalId} onChange={(e) => setProposalId(e.target.value.trim())} placeholder="auto" />
 
+          <label htmlFor="governance-actor">Council actor</label>
+          <select
+            id="governance-actor"
+            value={governanceActorId}
+            onChange={(e) => setGovernanceActorId(e.target.value)}
+            disabled={busy || councilActors.length === 0}
+          >
+            {councilActors.map((actor) => (
+              <option key={actor.id} value={actor.id}>
+                {actor.displayName} — {actor.mspId}
+              </option>
+            ))}
+          </select>
+          <p className="hint" style={{ marginTop: '.35rem' }}>
+            This actor signs only the Council transaction. One approval per organisation counts toward the
+            quorum.
+          </p>
+
           <div className="row" style={{ marginTop: '.9rem' }}>
-            <button onClick={() => void runGovernance('propose')} disabled={busy || !identity}>
-              Propose
+            <button onClick={() => void runGovernance('propose')} disabled={busy || !governanceActor}>
+              Propose as {governanceActor?.mspId ?? 'Council member'}
             </button>
-            <button className="mint" onClick={() => void runGovernance('approve')} disabled={busy || !proposalId}>
-              Approve as {current?.mspId}
+            <button className="mint" onClick={() => void runGovernance('approve')} disabled={busy || !proposalId || !governanceActor}>
+              Approve as {governanceActor?.mspId ?? 'Council member'}
             </button>
-            <button className="ghost" onClick={() => void runGovernance('activate')} disabled={busy || !proposalId}>
-              Activate
+            <button className="ghost" onClick={() => void runGovernance('activate')} disabled={busy || !proposalId || !governanceActor}>
+              Activate as {governanceActor?.mspId ?? 'Council member'}
             </button>
           </div>
           <p className="hint">

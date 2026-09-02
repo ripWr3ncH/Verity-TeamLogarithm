@@ -48,8 +48,9 @@
   --coral-soft: #fceae6;
 
   /* ---- amber: watch ---- */
-  --amber:      #8a6100;
-  --amber-soft: #fbf1d9;
+  --amber:        #8a6100;
+  --amber-soft:   #fbf1d9;
+  --amber-border: #e8d9ae;
 
   --shadow:    0 1px 2px rgba(17,17,17,.05), 0 10px 30px -22px rgba(17,17,17,.35);
   --shadow-lg: 0 2px 4px rgba(17,17,17,.06), 0 18px 44px -26px rgba(17,17,17,.4);
@@ -402,7 +403,7 @@ input[readonly] {
 
 .disclaimer {
   background: var(--amber-soft);
-  border: 1px solid #e8d9ae;
+  border: 1px solid var(--amber-border);
   border-radius: var(--r-card);
   padding: .8rem 1rem;
   font-size: .82rem;
@@ -430,6 +431,158 @@ input[readonly] {
 .row { display: flex; gap: .7rem; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
 .divider { border: 0; border-top: 1px solid var(--rule-soft); margin: 1.15rem 0; }
+
+/* ==========================================================================
+   How it works — static process diagrams (see components/HowItWorks.tsx)
+
+   Plain flexbox, no diagram library. The flow is a left-to-right pipeline
+   that wraps on narrow screens; the branches below it are a single dashed
+   rule rather than a routed SVG line, which stays legible at any width
+   instead of overlapping at a width nobody tested.
+   ========================================================================== */
+
+.flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: .65rem; }
+.flow-node {
+  flex: 1 1 10rem;
+  min-width: 9.5rem;
+  max-width: 13.5rem;
+  background: var(--surface);
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r-card);
+  padding: .95rem 1.05rem;
+  text-align: center;
+  box-shadow: var(--shadow);
+}
+.flow-node.accent-mint  { border-color: var(--mint-2); background: var(--mint-soft); }
+.flow-node.accent-amber { border-color: var(--amber-border); background: var(--amber-soft); }
+.flow-node.accent-ink   { border-color: var(--ink); background: var(--ink); }
+.flow-node.accent-ink .flow-node-label,
+.flow-node.accent-ink .flow-node-detail { color: #fff; }
+.flow-node.accent-ink .flow-node-detail { opacity: .78; }
+.flow-node-label { font-weight: 700; font-size: 1rem; line-height: 1.3; }
+.flow-node-detail {
+  font-family: var(--font-mono), monospace;
+  font-size: .8rem;
+  color: var(--ink-2);
+  margin-top: .35rem;
+  line-height: 1.45;
+}
+
+.flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 5rem;
+  flex: 0 0 auto;
+  padding: 0 .1rem;
+}
+.flow-arrow-line { color: var(--mint-deep); font-size: 1.4rem; line-height: 1; font-weight: 700; }
+.flow-arrow-label {
+  font-family: var(--font-mono), monospace;
+  font-size: .71rem;
+  color: var(--ink-2);
+  text-align: center;
+  max-width: 7.5rem;
+  margin-top: .2rem;
+  line-height: 1.4;
+}
+
+.flow-branch {
+  margin-top: .85rem;
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  font-size: .87rem;
+  color: var(--ink-2);
+  flex-wrap: wrap;
+}
+.flow-branch .dashed { border-top: 1.5px dashed var(--mint-2); flex: 1 1 2rem; min-width: 1.5rem; }
+
+/* A step track: an ordered sequence of attempts, most refused until the one
+   condition the rule actually cares about holds. */
+.steps { display: flex; flex-direction: column; }
+.step { display: flex; gap: 1rem; }
+.step-rail { display: flex; flex-direction: column; align-items: center; width: 1.6rem; flex-shrink: 0; }
+.step-dot { width: .78rem; height: .78rem; border-radius: 50%; margin-top: .45rem; flex-shrink: 0; box-shadow: 0 0 0 3px var(--surface-2); }
+.step-dot.refused   { background: var(--coral); }
+.step-dot.committed { background: var(--mint-2); }
+.step-dot.amber     { background: var(--amber); }
+.step-line { width: 2px; flex: 1; background: var(--rule); min-height: 1.1rem; }
+.step:last-child .step-line { display: none; }
+.step-body { padding-bottom: 1.25rem; flex: 1; min-width: 0; }
+.step-label { font-weight: 700; font-size: 1rem; line-height: 1.35; }
+.step-detail { font-size: .89rem; color: var(--ink-2); margin-top: .25rem; line-height: 1.5; }
+.step-code {
+  font-family: var(--font-mono), monospace;
+  font-weight: 600;
+  font-size: .78rem;
+  margin-top: .5rem;
+  display: inline-block;
+  padding: .28rem .75rem;
+  border-radius: var(--r-pill);
+}
+.step-code.refused   { background: var(--coral-soft); color: var(--coral); }
+.step-code.committed { background: var(--mint-soft);  color: var(--mint-deep); }
+.step-code.amber     { background: var(--amber-soft); color: var(--amber); }
+
+/* A top-to-bottom network topology: a titled group of chips, then the next
+   group below it. Mirrors a mermaid `flowchart TB` without needing one. */
+.netgroup {
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r-card);
+  padding: .95rem 1.1rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.netgroup.accent-ink  { background: var(--ink); border-color: var(--ink); }
+.netgroup.accent-mint { background: var(--mint-soft); border-color: var(--mint-2); }
+.netgroup-title {
+  font-family: var(--font-mono), monospace;
+  font-size: .74rem;
+  font-weight: 600;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: .65rem;
+}
+.netgroup.accent-ink .netgroup-title { color: rgba(255,255,255,.75); }
+.netgroup-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+.netgroup-chips .pill { font-size: .78rem; padding: .32rem .8rem; font-weight: 600; }
+.netgroup.accent-ink .netgroup-chips .pill { background: rgba(255,255,255,.14); color: #fff; border-color: rgba(255,255,255,.24); }
+
+.net-down {
+  width: 2px;
+  height: 1.3rem;
+  background: var(--mint-2);
+  margin: .1rem auto;
+}
+
+/* Three labelled columns — what's on the ledger, what's in a private data
+   collection, what never leaves the bank at all. */
+.netcol {
+  border: 1.5px solid var(--rule);
+  border-radius: var(--r-card);
+  padding: 1.05rem 1.15rem;
+  background: var(--surface-2);
+  height: 100%;
+  box-shadow: var(--shadow);
+}
+.netcol.accent-ink  { background: var(--ink); border-color: var(--ink); }
+.netcol.accent-mint { background: var(--mint-soft); border-color: var(--mint-2); }
+.netcol-title {
+  font-family: var(--font-mono), monospace;
+  font-weight: 700;
+  font-size: .78rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin-bottom: .75rem;
+  color: var(--ink-2);
+}
+.netcol.accent-mint .netcol-title { color: var(--mint-deep); }
+.netcol.accent-ink .netcol-title { color: #fff; }
+.netcol-list { margin: 0; padding-left: 1.15rem; font-size: .91rem; color: var(--ink-2); line-height: 1.85; font-weight: 500; }
+.netcol.accent-ink .netcol-list { color: rgba(255,255,255,.88); }
 
 /* ---------------------------------------------------------------------------
    Phone widths. KEEP THIS BLOCK LAST IN THE FILE.

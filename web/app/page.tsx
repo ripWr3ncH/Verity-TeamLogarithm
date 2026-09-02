@@ -1,11 +1,26 @@
 import Link from 'next/link';
 
+import {
+  ApprovalThreshold,
+  ArchitectureFlow,
+  BFTTopology,
+  DirectorConfirmation,
+  ExposureCeremony,
+  OnChainOffChain,
+  ReadModelCache,
+} from '@/components/HowItWorks';
+
 /**
  * Landing. The one sentence that frames the whole demo, then three doors.
  *
  * "The rules are not what is missing" is the thesis of the paper and the first
  * thing a judge should read, so it is set at display size and nothing competes
  * with it.
+ *
+ * The diagrams below "Three views of the same ledger" exist so a recorded
+ * walkthrough never has to cut away to README.md to explain the architecture
+ * or a refusal mechanism — everything a judge needs to see conceptually is
+ * one scroll down this page, next to the live portals it describes.
  */
 export default function Home() {
   return (
@@ -92,6 +107,27 @@ export default function Home() {
             Three steps, checked on your own device.
           </p>
         </Link>
+      </div>
+
+      <h2>How it works</h2>
+      <ArchitectureFlow />
+
+      <div className="grid-2" style={{ marginTop: '1.1rem' }}>
+        <ApprovalThreshold />
+        <DirectorConfirmation />
+      </div>
+
+      <div style={{ marginTop: '1.1rem' }}>
+        <ExposureCeremony />
+      </div>
+
+      <h2>Architecture</h2>
+      <div className="grid-2">
+        <BFTTopology />
+        <ReadModelCache />
+      </div>
+      <div style={{ marginTop: '1.1rem' }}>
+        <OnChainOffChain />
       </div>
 
       <h2>What this is not</h2>

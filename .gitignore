@@ -50,6 +50,7 @@ config/
 *.mp4
 *.mov
 *.avi
+/Prototype-demonstration/Verity-prototype.zip
 
 # --- Local environment -----------------------------------------------------
 .env
