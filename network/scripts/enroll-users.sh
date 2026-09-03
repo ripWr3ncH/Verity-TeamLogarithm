@@ -144,8 +144,33 @@ registerAndEnrol() {
   fi
 
   # Success: replace the old MSP wholesale so exactly one key survives.
-  rm -rf "${userHome}/msp"
-  mv "$stage" "${userHome}/msp"
+  #
+  # Retried, because a single mv is not reliable here. The repository usually
+  # lives on a Windows drive mounted over 9p, where a directory rename fails
+  # with EACCES if anything on the Windows side is still holding a handle to a
+  # file inside it -- an editor that just indexed the new certificates, or a
+  # virus scanner reading them. It is intermittent by nature: the same sequence
+  # run by hand a second later succeeds.
+  #
+  # Falling back to copy-then-delete matters as much as the retry. If the
+  # rename cannot be made to work, copying the contents still produces a
+  # correct MSP, and leaving the stage directory behind is harmless next to
+  # aborting a fifteen-minute bring-up at identity four of sixteen.
+  local swapped=0
+  for _ in 1 2 3 4 5; do
+    rm -rf "${userHome}/msp" 2>/dev/null
+    if mv "$stage" "${userHome}/msp" 2>/dev/null; then swapped=1; break; fi
+    sleep 1
+  done
+  if [[ "$swapped" -eq 0 ]]; then
+    mkdir -p "${userHome}/msp"
+    if cp -a "${stage}/." "${userHome}/msp/" 2>/dev/null; then
+      rm -rf "$stage" 2>/dev/null
+    else
+      die "could not install the MSP for ${user}: neither rename nor copy succeeded.
+     Close any editor or file indexer holding ${userHome}, then re-run this script."
+    fi
+  fi
 
   # Fabric expects config.yaml in the MSP for NodeOU-based role resolution.
   local caCertFile
