@@ -17,7 +17,7 @@
   Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
 </p>
 
-![The bank portal refusing a third rescheduling: BOARD_AUTHORISATION_REQUIRED, supplied 0 of 3 director signatures](docs/deck/09-bank-refused-0of3.png)
+![Verity — Bangladesh's continuous integrity layer for loan classification. Team Logarithm, BCOLBD 2026](docs/deck/01-titlepage.png)
 
 > **Status: functionally complete and running.** Fabric v3 BFT network, all four modules driven end to end
 > against a real ledger, 10/10 red-team attacks refused, 170 unit tests green. Remaining work is demo assets
