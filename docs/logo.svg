@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" role="img" aria-label="Verity">
+  <!--
+    The header mark, drawn at README scale.
+
+    Same shape the app draws: `.brand::before` in globals.css is an ink bar,
+    and the palette's one accent is mint (#6fe79f) for "committed". The third
+    bar is coral (#c7382b) for "refused" — the two outcomes the whole system
+    exists to distinguish, in the order a lifecycle event meets them.
+
+    Kept to three rectangles on purpose. A logo that needs explaining is not a
+    logo, and this one is the same three colours a judge sees on every screen.
+  -->
+  <rect width="120" height="120" rx="24" fill="#f1f0ea"/>
+  <rect x="26" y="26" width="18" height="68" rx="5" fill="#111111"/>
+  <rect x="52" y="26" width="12" height="68" rx="5" fill="#6fe79f"/>
+  <rect x="72" y="26" width="12" height="68" rx="5" fill="#c7382b"/>
+</svg>
