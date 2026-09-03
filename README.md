@@ -460,6 +460,20 @@ anyone has agreed to.
 
 ---
 
+### Checked with people who do this work
+
+![Field validation, 17 August 2026: the solution and workflow discussed with senior banking professionals from Bank Asia's credit-risk leadership and a state-owned commercial bank](docs/deck/17-banker-validation.png)
+
+The workflow was discussed on **17 August 2026** with two senior banking professionals — one from
+Bank Asia's credit-risk leadership, one from a state-owned commercial bank. That conversation
+shaped the design rather than ratifying it.
+
+**What it is not:** nobody has agreed to deploy this, no institution has committed to participate,
+and the institution names throughout this repository are placeholders. Practitioner input on the
+workflow is not the same as an adoption commitment, and we do not present it as one.
+
+---
+
 ## What is built, and what is not
 
 Kept current. We would rather state this than be asked.
