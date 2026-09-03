@@ -1,7 +1,23 @@
-# VERITY
+<p align="center">
+  <img src="docs/logo.svg" width="96" alt="" />
+</p>
 
-**Making loan classification tamper-evident in Bangladesh's banking system.**
-Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
+<h1 align="center">VERITY</h1>
+
+<p align="center"><strong>Making loan classification tamper-evident.</strong></p>
+
+<p align="center">
+  Bangladesh Bank already requires two named signatures on every classification, caps rescheduling
+  at three occasions, and reserves the third to the Board. Verity adds no rule. It turns those
+  approvals from a field the bank fills in itself into a <strong>condition the code checks</strong>
+  — and refuses, by name, citing the circular.
+</p>
+
+<p align="center">
+  Prototype · BCOLBD 2026, Blockchain Category (Student) · Team Logarithm
+</p>
+
+![The bank portal refusing a third rescheduling: BOARD_AUTHORISATION_REQUIRED, supplied 0 of 3 director signatures](docs/deck/09-bank-refused-0of3.png)
 
 > **Status: functionally complete and running.** Fabric v3 BFT network, all four modules driven end to end
 > against a real ledger, 10/10 red-team attacks refused, 170 unit tests green. Remaining work is demo assets
