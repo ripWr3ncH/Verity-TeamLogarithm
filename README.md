@@ -541,6 +541,29 @@ tolerance, p95 latency distribution, distributed topology, revocation latency.
 
 ---
 
+## Where to find things
+
+Seven documents, and a reader should not have to guess which one answers their question.
+
+| If you want to | Read |
+|---|---|
+| Understand what this is and why | this file |
+| **Run it yourself** | [SETUP.md](SETUP.md) — prerequisites, the exact commands, and eleven failure modes we actually hit |
+| Drive the demo, act by act | [DEMO.md](DEMO.md) |
+| See the measured numbers | [bench/RESULTS.md](bench/RESULTS.md) — including what was **not** measured |
+| Know why a decision was made | [HANDOFF/](HANDOFF/) — one file per phase, written as the work happened |
+| Record the demo videos | [VIDEO.md](VIDEO.md), [10MIN_SCRIPT.md](10MIN_SCRIPT.md) |
+
+The fastest way to convince yourself the system works is neither reading nor clicking:
+
+```bash
+./scripts/smoke.sh     # 54 checks: containers, channels, HTTP, data, a real write, tests, red team
+```
+
+It exits non-zero and names what broke.
+
+---
+
 ## Repository layout
 
 ```
