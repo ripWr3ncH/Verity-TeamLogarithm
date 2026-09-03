@@ -39,6 +39,8 @@ rather than trusting a self-reported field, and measures rescheduling against th
 
 ---
 
+![The core issue: a bank changes a loan, the record stays inside the bank, only a summary is reported, and inspectors check later and only a sample](docs/deck/02-core-issue.png)
+
 ## What it actually does
 
 ```mermaid
@@ -77,6 +79,25 @@ flowchart LR
 
 The adapter is read-only **at the database grant**, not by convention. Existing CL-1 submission, EDW upload
 and CIB reporting continue unchanged — nothing a bank already files is replaced.
+
+---
+
+### The flow, end to end
+
+![Seven steps across three phases: banks record the change, Verity copies it as a signed tamper-evident record, officers sign off, the code checks the approval is real, Bangladesh Bank confirms, Verity compares against the official report and flags risk, and a depositor checks their balance at any time](docs/deck/04-how-it-works.png)
+
+The line under that diagram is the integration answer in full: **Verity sits beside the core banking
+system and never writes into it.** Existing CL-1 to CL-5 submission, EDW upload and CIB reporting
+continue unchanged — and the adapter holds `SELECT` and nothing else, enforced by a database grant
+rather than by our own code choosing to behave.
+
+### Why a shared ledger rather than a bigger database
+
+![Central database versus the Verity ledger: one custodian holding revisable history, against each bank signing its own events with only encrypted totals shared](docs/deck/03-why-blockchain.png)
+
+The three answers a judge will press on, in one picture: banks must contribute evidence without any
+one of them controlling it, only encrypted totals cross institutional lines, and approval stops
+being a self-reported field.
 
 ---
 
@@ -152,6 +173,17 @@ sequenceDiagram
 The "2 of 3" step is the one that matters — those are real ed25519 signatures, verified against the registered
 director set and counted as *distinct* signers. The threshold is not an array-length check.
 
+Refused at 0 of 3, refused at 2 of 3 with real signatures, then committed:
+
+| | |
+|---|---|
+| ![Refused with no director signatures](docs/deck/09-bank-refused-0of3.png) | ![Refused with two of three director signatures](docs/deck/10-bank-refused-2of3.png) |
+
+![Committed to the ledger, with the transaction id, block height and both endorsers](docs/deck/11-bank-committed-receipt.png)
+
+The receipt line that matters is **ENDORSED BY: originating bank peer + BangladeshBankMSP peer**.
+Without the supervisor's endorsement the transaction does not commit at all.
+
 #### Act 1b — and who decides who the three directors are?
 
 Counting signatures proves that three keys signed. It says nothing about **whose** keys they are. A bank that
@@ -187,6 +219,8 @@ Records written before this control existed carry no status and are treated as *
 grandfathered in. Failing closed is the only safe direction: the alternative silently exempts exactly the
 directors the control exists to catch.
 
+![The supervisor's board confirmation panel, every director CONFIRMED and named](docs/deck/14-supervisor-board.png)
+
 ### Act 2 — what the return records, and what the ledger records
 
 The same exposure, two columns. Every quarterly return in the sequence reports it as *Unclassified*.
@@ -204,6 +238,14 @@ does not carry. Both figures reproduce on the live ledger.
 And the honest half: **35% of all reschedulings in this population fall within 30 days of a reference date.**
 Ordinary forbearance clusters near period-end too. That is why E\* is calibrated against the measured
 distribution rather than against zero, and the histogram sits on the dashboard beside the queue.
+
+![Same loan, two views: four quarterly returns all reading Unclassified, against an index climbing 0.698, 2.136, 4.048, 6.055](docs/deck/06-module1-two-views.png)
+
+And the same exposure on the running prototype, beside the filed return:
+
+![The supervisor dashboard showing BD-4471, the CL-1 column against the ledger column](docs/deck/13-supervisor-bd4471.png)
+
+![The CL-1 reconciliation: 804 filed, 843 on the ledger, 39 absent, beside the read-only adapter refused by PostgreSQL](docs/deck/12-supervisor-reconciliation.png)
 
 ### Act 3a — privacy, enforced by the platform
 
@@ -243,6 +285,16 @@ sequenceDiagram
 Neither bank breaches its own limit. The group breaches the system's. **Paillier adds; it does not compare** —
 so the total is threshold-decrypted to the supervisor and compared in the clear, and the chaincode verifies
 the announced total against the ciphertext it holds before believing it.
+
+![Each bank encrypts its borrower-group total; homomorphic aggregation adds them without decrypting, and only the final total is opened](docs/deck/07-module2-encrypted.png)
+
+### Modules III and IV — the depositor
+
+![The depositor journey: sign the balance, verify inclusion, hold a verified claim](docs/deck/15-depositor-journey.png)
+
+A depositor holds **no identity in this system** — no certificate, no account with us. The inclusion
+proof is recomputed in their own browser and checked against the committed root. If verification
+needed our permission it would be worth nothing.
 
 ### Act 5 — governance that executes
 
@@ -354,6 +406,22 @@ flowchart LR
 Peers run **LevelDB, not CouchDB** — rich queries belong in the projection. Press **Rebuild from block 0** in
 the supervisor portal and every projection is truncated and replayed: 830 exposures return in about 90
 seconds, BD-4471 still scoring 6.055. Nothing is lost, because nothing there was ever the record.
+
+---
+
+### The designed architecture
+
+![The full Verity architecture: banking and regulatory integration, the Hyperledger Fabric platform, the cryptography layer, application services, and the on-chain / off-chain data boundary](docs/deck/05-architecture.png)
+
+> [!IMPORTANT]
+> This diagram is the **design**, not the build. Components marked *Proposed* — the zk-SNARK circuit
+> and the Verified Claims Layer — are whitepaper §3.7.3 and are **not implemented in this
+> prototype**. Everything else in it runs. See
+> [What is built, and what is not](#what-is-built-and-what-is-not).
+
+### Governance and security
+
+![Who can join, how the record is kept secure, and how decisions are made across the Council](docs/deck/16-governance-security.png)
 
 ---
 
