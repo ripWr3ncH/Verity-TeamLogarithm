@@ -19,6 +19,12 @@
 
 ![Verity — Bangladesh's continuous integrity layer for loan classification. Team Logarithm, BCOLBD 2026](docs/deck/01-titlepage.png)
 
+<p align="center">
+  <a href="docs/deck/18-VerityPoster.png"><img src="docs/deck/18-VerityPoster.png" alt="Verity project poster — 8-panel overview: the problem, what Verity does, one exposure two records, architecture, governance, competition and risks, market and revenue, distribution roadmap" /></a>
+  <br />
+  <em>Project poster — problem, design, architecture, governance, market and rollout in one image.</em>
+</p>
+
 > **Status: functionally complete and running.** Fabric v3 BFT network, all four modules driven end to end
 > against a real ledger, 10/10 red-team attacks refused, 170 unit tests green. Remaining work is demo assets
 > and rehearsal — see [What is built, and what is not](#what-is-built-and-what-is-not).
