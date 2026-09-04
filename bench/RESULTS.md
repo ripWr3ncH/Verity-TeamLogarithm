@@ -118,10 +118,18 @@ extrapolated from 264 blocks — the honest thing to say is that it is not yet k
 | 6 | Stale prior-state hash | `STATE_DIVERGENCE` |
 | 7 | One bank raising its own alert threshold | `GOVERNANCE_QUORUM_REQUIRED` — 1 of 3 |
 | 8 | **Revoked certificate signs a new event** | `IDENTITY_NOT_VALID` — and the officer's earlier events remain readable |
+| 9 | **Bank registers its own Board and signs with it** | `DIRECTOR_NOT_CONFIRMED` — three valid signatures, threshold met, no supervisor confirmation |
+| 10 | Council member withdraws another org's proposal | `ROLE_REQUIRED` — approving and retracting are not the same right |
 
 An intermediate result worth showing: at RS-3 with **two** valid director signatures the refusal reads
 *supplied 2 of 3*. Those were real ed25519 signatures, verified against the registered set and counted as
 distinct signers — the threshold is not an array-length check.
+
+Attacks 9 and 10 each run their second half, because a control that only ever refuses has not been
+shown to be a control. Once Bangladesh Bank confirms the three directors of attack 9, the **same three
+signatures** commit; the run then unseats them so the roster it started with is the roster it leaves. In
+attack 10 the organisation that raised the proposal withdraws it successfully straight after the
+Council member is refused.
 
 ## 8. What has NOT been measured
 

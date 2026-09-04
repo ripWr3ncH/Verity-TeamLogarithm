@@ -501,10 +501,10 @@ Kept current. We would rather state this than be asked.
 | Rebuild from block 0 | ✅ exposed as a control |
 | Red-team suite | ✅ **10/10 attacks refused**, verified live |
 | Measured performance | ✅ 20.4 tx/s · [bench/RESULTS.md](bench/RESULTS.md) |
-| **Browser walk-through by a human** | ⏳ **not yet done** |
+| Browser walk-through by a human | ✅ all four portals walked · panels in [docs/deck/](docs/deck/) |
 | Demo runbook and video scripts | ✅ [DEMO.md](DEMO.md) · [VIDEO.md](VIDEO.md) |
 | State snapshot and restore | ✅ [scripts/snapshot.sh](scripts/snapshot.sh) · round trip verified |
-| **Recording the videos, poster panels, rehearsal** | ⏳ not started |
+| Recording the videos, poster panels, rehearsal | ✅ done · poster [docs/deck/18-VerityPoster.png](docs/deck/18-VerityPoster.png) |
 | **Clean-clone run on a second machine, offline** | ⏳ not verified |
 
 **Out of scope for this prototype, and deliberately so:**
